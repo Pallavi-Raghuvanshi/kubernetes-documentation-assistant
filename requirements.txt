@@ -1,0 +1,9 @@
+# src/ingestion/1fetch_docs.py
+requests
+PyYAML
+# src/ingestion/extract_text.py
+beautifulsoup4
+# src/ingestion/3chunk_text.py
+transformers
+# src/retrieval/5bm25_retriever.py
+rank-bm25

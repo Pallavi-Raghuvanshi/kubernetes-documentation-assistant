@@ -1,0 +1,70 @@
+{
+  "retriever": "bm25",
+  "relevance_level": "source",
+  "evaluated_queries": 10,
+  "recall_at_10": 0.95,
+  "mrr": 0.73,
+  "hit_rate": 1.0,
+  "per_query": [
+    {
+      "query_id": "q001",
+      "recall_at_10": 1.0,
+      "mrr": 0.5,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q002",
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q003",
+      "recall_at_10": 1.0,
+      "mrr": 0.2,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q004",
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q005",
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q006",
+      "recall_at_10": 0.5,
+      "mrr": 1.0,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q007",
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q008",
+      "recall_at_10": 1.0,
+      "mrr": 0.1,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q009",
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "hit_rate": 1.0
+    },
+    {
+      "query_id": "q010",
+      "recall_at_10": 1.0,
+      "mrr": 0.5,
+      "hit_rate": 1.0
+    }
+  ]
+}

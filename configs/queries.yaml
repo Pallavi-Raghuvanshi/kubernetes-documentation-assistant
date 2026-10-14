@@ -1,0 +1,53 @@
+
+queries:
+  - query_id: q001
+    query: "What is Kubernetes and what problems does it solve?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/overview/"
+
+  - query_id: q002
+    query: "What is a Pod in Kubernetes?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/workloads/pods/"
+
+  - query_id: q003
+    query: "How do Kubernetes Deployments manage application replicas?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+
+  - query_id: q004
+    query: "How does a Kubernetes Service expose an application?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/services-networking/service/"
+
+  - query_id: q005
+    query: "What happens when a Pod managed by a Deployment fails?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+      - "https://kubernetes.io/docs/concepts/workloads/pods/"
+
+  - query_id: q006
+    query: "What is the difference between a Pod and a Deployment?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/workloads/pods/"
+      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+
+  - query_id: q007
+    query: "How does a Service find the Pods that should receive traffic?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/services-networking/service/"
+
+  - query_id: q008
+    query: "What is the purpose of a Kubernetes control plane?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/overview/"
+
+  - query_id: q009
+    query: "How can a Deployment be scaled to run more replicas?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+
+  - query_id: q010
+    query: "Why are Pods considered ephemeral?"
+    relevant_sources:
+      - "https://kubernetes.io/docs/concepts/workloads/pods/"
