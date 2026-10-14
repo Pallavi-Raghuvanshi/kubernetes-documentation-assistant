@@ -1,7 +1,5 @@
 corpus:
   name: kubernetes
-  corpus:
-  name: kubernetes
   source_type: html
   source_urls:
     - https://kubernetes.io/docs/concepts/overview/
