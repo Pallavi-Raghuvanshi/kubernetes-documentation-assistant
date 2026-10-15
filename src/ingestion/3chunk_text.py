@@ -47,6 +47,7 @@ def main() -> None:
 
     def split_into_chunks(text: str) -> list[str]:
         """Chunk text while preserving paragraph boundaries where possible."""
+        # split extracted text into sections at blank lines (paragraphs)
         sections = [
             section.strip()
             for section in re.split(r"\n\s*\n", text)
@@ -57,11 +58,13 @@ def main() -> None:
         current_parts = []
 
         def save_chunk(parts: list[str]) -> None:
-            content = "\n\n".join(parts).strip()
+            # create a chunk by concatenating current parts with a blank line separator
+            content = "\n\n".join(parts).strip() 
             if content:
                 chunks.append(content)
 
         for section in sections:
+            # Tokenize the section to check its length
             section_tokens = tokenizer.encode(
                 section, add_special_tokens=False
             )
@@ -94,16 +97,14 @@ def main() -> None:
 
             candidate = "\n\n".join(current_parts + [section])
 
+            # if combining next section to current chunk will exceed the chunk size
             if current_parts and token_count(candidate) > chunk_size:
+                # list of current sections combined with a blank line
                 previous = "\n\n".join(current_parts)
                 save_chunk(current_parts)
-
-                previous_tokens = tokenizer.encode(
-                    previous, add_special_tokens=False
-                )
-                carried_tokens = (
-                    previous_tokens[-overlap:] if overlap else []
-                )
+                # extract overlapping text from previous token and start next chunk with it
+                previous_tokens = tokenizer.encode(previous, add_special_tokens=False)
+                carried_tokens = previous_tokens[-overlap:] if overlap else []
                 carried = tokenizer.decode(
                     carried_tokens,
                     skip_special_tokens=True,
@@ -119,6 +120,7 @@ def main() -> None:
 
         return chunks
 
+    # Read input files, split into chunks, and write to output JSONL file
     records_written = 0
     missing_files = []
 

@@ -42,6 +42,11 @@ def main() -> None:
     source_counts = Counter()
     token_counts = []
 
+    required_fields = {
+        "chunk_id", "source", "tokenizer",
+        "token_count", "text"
+    }
+
     with chunks_path.open(encoding="utf-8") as file:
         for line_number, line in enumerate(file, start=1):
             try:
@@ -53,11 +58,6 @@ def main() -> None:
                 continue
 
             records.append(record)
-
-            required_fields = {
-                "chunk_id", "source", "tokenizer",
-                "token_count", "text"
-            }
 
             missing = required_fields - record.keys()
             if missing:

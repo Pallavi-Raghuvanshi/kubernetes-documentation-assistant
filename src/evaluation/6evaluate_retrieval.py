@@ -1,4 +1,3 @@
-
 import json
 from pathlib import Path
 
@@ -9,11 +8,18 @@ ROOT = Path(__file__).resolve().parents[2]
 QUERIES_CONFIG_PATH = ROOT / "configs" / "queries.yaml"
 RESULTS_PATH = ROOT / "experiments" / "bm25" / "results.jsonl"
 OUTPUT_PATH = ROOT / "experiments" / "bm25" / "evaluation.json"
+RETRIEVAL_CONFIG_PATH = ROOT / "configs" / "retrieval.yaml"
 
 
 def main() -> None:
     with QUERIES_CONFIG_PATH.open(encoding="utf-8") as file:
         queries = yaml.safe_load(file)["queries"]
+
+    with RETRIEVAL_CONFIG_PATH.open(encoding="utf-8") as file:
+        retrieval_config = yaml.safe_load(file)["retrieval"]
+
+    retriever = retrieval_config["default_retriever"]
+    top_k = int(retrieval_config["top_k"])
 
     results_by_query = {}
 
@@ -28,14 +34,12 @@ def main() -> None:
     for query_item in queries:
         query_id = query_item["query_id"]
         relevant_sources = set(query_item["relevant_sources"])
-        results = results_by_query.get(query_id, [])
+        results = results_by_query.get(query_id, [])[:top_k]
 
         if not relevant_sources:
             continue
 
-        retrieved_sources = [
-            result["source"] for result in results
-        ]
+        retrieved_sources = [result["source"] for result in results]
 
         relevant_ranks = [
             rank
@@ -43,19 +47,21 @@ def main() -> None:
             if source in relevant_sources
         ]
 
-        relevant_retrieved = len(
-            set(retrieved_sources) & relevant_sources
-        )
+        relevant_retrieved = len(set(retrieved_sources) & relevant_sources)
 
-        recall_at_10 = relevant_retrieved / len(relevant_sources)
-        reciprocal_rank = (
-            1 / relevant_ranks[0] if relevant_ranks else 0.0
-        )
+        recall_at_k = relevant_retrieved / len(relevant_sources)
+
+        precision_at_k = sum(
+            source in relevant_sources for source in retrieved_sources # produces boolean valuesx
+            ) / top_k
+
+        reciprocal_rank = (1 / relevant_ranks[0] if relevant_ranks else 0.0) # get rank of 1st relevant retrieved chunk
         hit_rate = 1.0 if relevant_ranks else 0.0
 
         query_metrics.append({
             "query_id": query_id,
-            "recall_at_10": recall_at_10,
+            f"precision_at_{top_k}": precision_at_k,
+            f"recall_at_{top_k}": recall_at_k,
             "mrr": reciprocal_rank,
             "hit_rate": hit_rate,
         })
@@ -66,11 +72,16 @@ def main() -> None:
     count = len(query_metrics)
 
     summary = {
-        "retriever": "bm25",
+        "retriever": retriever,
         "relevance_level": "source",
         "evaluated_queries": count,
-        "recall_at_10": sum(
-            item["recall_at_10"] for item in query_metrics
+        f"precision_at_{top_k}": sum(
+            item[f"precision_at_{top_k}"]
+            for item in query_metrics
+        ) / count,
+        f"recall_at_{top_k}": sum(
+            item[f"recall_at_{top_k}"]
+            for item in query_metrics
         ) / count,
         "mrr": sum(
             item["mrr"] for item in query_metrics
@@ -87,11 +98,18 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    print("=== BM25 Evaluation ===")
+    print(f"=== {retriever.upper()} Evaluation ===")
     print(f"Queries evaluated: {count}")
-    print(f"Recall@10: {summary['recall_at_10']:.4f}")
-    print(f"MRR:       {summary['mrr']:.4f}")
-    print(f"Hit Rate:  {summary['hit_rate']:.4f}")
+    print(
+        f"Precision@{top_k}: "
+        f"{summary[f'precision_at_{top_k}']:.4f}"
+    )
+    print(
+        f"Recall@{top_k}:    "
+        f"{summary[f'recall_at_{top_k}']:.4f}"
+    )
+    print(f"MRR:               {summary['mrr']:.4f}")
+    print(f"Hit Rate:          {summary['hit_rate']:.4f}")
     print(f"Saved: {OUTPUT_PATH}")
 
 

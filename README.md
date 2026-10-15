@@ -2,17 +2,35 @@
 
 ## Introduction
 
-This project benchmarks Retrieval-Augmented Generation (RAG) retrieval systems to analyze trade-offs between **retrieval quality, latency, and memory consumption** across different retrieval models, indexing strategies, and numerical precisions.
+This project benchmarks Retrieval-Augmented Generation (RAG) retrieval systems to analyze trade-offs between **retrieval quality, latency, and memory consumption** across different retrieval models, indexing strategies, and numerical precisions. Kubernetes documentation has been used as corpus which can be updated in ``configs/corpus.yaml``
 
-The goal is to identify optimal retrieval configurations under specific performance and hardware constraints. 
-
-Kubernetes documentation has been used as corpus which can be updated in ``configs/corpus.yaml``
+**Goal:** is to identify optimal retrieval configurations under specific performance and hardware constraints.
 
 ## Research Questions
 
-1. How do retrieval models and index types affect Recall@10 and latency?
-2. How does FP32, FP16, and INT8 precision impact recall and memory usage?
+1. ~How do retrieval models and index types affect Recall@10 and latency?~
+2. ~How does FP32, FP16, and INT8 precision impact recall and memory usage?~
 3. Which configuration maximizes retrieval quality under latency and memory constraints?
+
+## Experimental Scope
+
+Benchmarking RAG retrieval configurations across quality, latency, and memory.
+
+* **Chunking: Fixed 512-token chunks with 128-token overlap**
+* **Tokenization:** Tokenizer behavior • Structure-aware chunking
+* **Embedding Models:** MiniLM • BGE • Embedding generation cost
+* **Retrieval Strategies:** Sparse Retrieval (BM25) • Dense retrieval • Hybrid retrieval (RRF)     < - applied on chunks
+* **Vector Indexes:** FAISS Flat • HNSW • IVF-Flat
+* **Precision:** FP32 • FP16 • INT8 (where supported)
+* **Evaluation:**
+  * **Recall@10**: Proportion of relevant chunks retrieved in top 10 retrieved chunks
+  * **Precision@10:** Proportion of chunks retrieved which are relevant to the query.
+  * **MRR:** Mean of Reciprocal of Rank of the 1st relevant chunk for each of the query token
+  * **Hit Rate@10:** Proportion of queries having atleast one relevant chunk in top 10 retrieved chunks
+* **Performance:** p50/p95/p99 latency • Index size • Runtime memory
+* **Analysis:** Pareto frontier • Quality–latency–memory trade-offs • Constraint-aware configuration selector
+
+**Scope:** Focuses on retrieval benchmarking, not LLM answer generation.
 
 ## Project Structure
 

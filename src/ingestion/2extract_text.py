@@ -24,15 +24,15 @@ def extract_text(input_path: Path) -> str:
         input_path.read_text(encoding="utf-8"),
         "html.parser",
     )
-
+    # Remove certain unnecessary HTML elements
     for element in soup.select(
         "script, style, nav, footer, header, noscript"
     ):
         element.decompose()
-
+    # Extract text from the main content area, or fallback to body or entire document
     main_content = soup.find("main") or soup.body or soup
     lines = []
-
+    # Extract text from headings, paragraphs, list items, and code blocks 
     for element in main_content.find_all(
         ["h1", "h2", "h3", "h4", "p", "li", "pre"]
     ):
@@ -40,12 +40,12 @@ def extract_text(input_path: Path) -> str:
 
         if not text:
             continue
-
+        # Preserve heading structure by converting HTML headings to Markdown-style headings for downstream processing
         if element.name.startswith("h"):
-            lines.append(f"\n{'#' * int(element.name[1])} {text}\n")
+            lines.append(f"\n{'#' * int(element.name[1])} {text}\n") # <h1> -> #, <h2> -> ##, etc.
         else:
             lines.append(text)
-
+    # Separate extracted text with blank lines
     return "\n\n".join(lines).strip()
 
 

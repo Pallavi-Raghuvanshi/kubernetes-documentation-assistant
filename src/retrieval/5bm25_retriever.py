@@ -1,4 +1,3 @@
-
 import json
 import re
 from pathlib import Path
@@ -45,17 +44,11 @@ def main() -> None:
         ROOT / "data" / "processed" /
         corpus_name / "chunks.jsonl"
     )
-    output_path = (
-        ROOT / "experiments" / "bm25" / "results.jsonl"
-    )
+    output_path = ROOT / "experiments" / "bm25" / "results.jsonl"
 
     chunks = load_chunks(chunks_path)
     queries = query_config["queries"]
-
-    tokenized_corpus = [
-        tokenize(chunk["text"])
-        for chunk in chunks
-    ]
+    tokenized_corpus = [tokenize(chunk["text"]) for chunk in chunks]
 
     bm25 = BM25Okapi(tokenized_corpus)
 
@@ -66,13 +59,14 @@ def main() -> None:
             query_id = query_item["query_id"]
             query_text = query_item["query"]
             query_tokens = tokenize(query_text)
-
+            # Compute BM25 scores for the query against each chunk
             scores = bm25.get_scores(query_tokens)
+            # Rank chunks by score
             ranked_indices = sorted(
                 range(len(scores)),
                 key=lambda index: scores[index],
                 reverse=True,
-            )[:10]
+            )[:10] # select top 10 chunks
 
             results = []
 
