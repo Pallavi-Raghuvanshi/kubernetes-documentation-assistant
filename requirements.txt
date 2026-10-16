@@ -7,3 +7,9 @@ beautifulsoup4
 transformers
 # src/retrieval/5bm25_retriever.py
 rank-bm25
+# embedding
+torch
+# inference
+accelerate # helps transformer loan and place models on available hardware (CPU/GPU)
+# models/_6download_models.py
+huggingface_hub

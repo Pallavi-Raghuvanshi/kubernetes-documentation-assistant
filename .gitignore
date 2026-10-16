@@ -1,3 +1,9 @@
 logs.md
 .venv/
-a.ipynb
+test.ipynb
+improvements.txt
+changes.txt
+# remove folders from all depths of repo
+__pycache__/ 
+.cache/ 
+/models/

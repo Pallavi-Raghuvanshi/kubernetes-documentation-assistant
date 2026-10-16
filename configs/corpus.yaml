@@ -8,7 +8,7 @@ corpus:
     - https://kubernetes.io/docs/concepts/services-networking/service/
 
 chunking:
-  strategy: structure_aware
+  # strategy: structure_aware
   tokenizer: bert-base-uncased
   chunk_size: 512
   chunk_overlap: 128

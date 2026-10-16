@@ -12,6 +12,21 @@ This project benchmarks Retrieval-Augmented Generation (RAG) retrieval systems t
 2. ~How does FP32, FP16, and INT8 precision impact recall and memory usage?~
 3. Which configuration maximizes retrieval quality under latency and memory constraints?
 
+## Notes
+
+1. `_1<filename>` means code file to be run at step 1
+2. `__1<filename>` means that this file has to be run only once after file run at step 1
+3. `_v1<filename>` means this code file is just for validation of output of code file run at step 1
+
+## Imp. Concepts
+
+- **BM25 Index** maintains
+  - Vocabulary: the unique words appearing in the chunks.
+  - Term frequencies: how often each word appears in each chunk.
+  - Document frequencies: how many chunks contain each word.
+  - Document lengths: the length of each chunk, used for length normalization.
+  - Chunk mapping: the association between each indexed document and its original chunk ID.
+
 ## Experimental Scope
 
 Benchmarking RAG retrieval configurations across quality, latency, and memory.
@@ -109,4 +124,22 @@ python src/retrieval/5bm25_retriever.py
 
 ```code
 python src/evaluation/6evaluate_retrieval.py
+```
+
+## Download LLM
+
+```python
+python src\models\_6download_models.py
+```
+
+### 7. Load LLM
+
+```python
+run python src\models\7load_models.py
+```
+
+### 8. Inference (generate text response)
+
+```python
+python src.generation._8llm_inference
 ```
