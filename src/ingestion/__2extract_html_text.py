@@ -1,4 +1,5 @@
 
+# __2_extract_html_text.py
 import json
 from pathlib import Path
 from urllib.parse import urlparse
@@ -27,7 +28,7 @@ def extract_text(input_path: Path) -> str:
     # Extract text from the main content area, or fallback to body or entire document
     main_content = soup.find("main") or soup.body or soup
     lines = []
-    # Extract text from headings, paragraphs, list items, and code blocks 
+    # Extract text from headings, paragraphs, list items, and code blocks
     for element in main_content.find_all(
         ["h1", "h2", "h3", "h4", "p", "li", "pre"]
     ):
@@ -37,7 +38,7 @@ def extract_text(input_path: Path) -> str:
             continue
         # Preserve heading structure by converting HTML headings to Markdown-style headings for downstream processing
         if element.name.startswith("h"):
-            lines.append(f"\n{'#' * int(element.name[1])} {text}\n") # <h1> -> #, <h2> -> ##, etc.
+            lines.append(f"\n{'#' * int(element.name[1])} {text}\n")
         else:
             lines.append(text)
     # Separate extracted text with blank lines
@@ -63,6 +64,7 @@ def main() -> None:
 
     successful = 0
     failed = 0
+    source_records = []
 
     for source_url in source_urls:
         filename = filename_from_url(source_url)
@@ -84,7 +86,13 @@ def main() -> None:
 
             output_path.write_text(clean_text, encoding="utf-8")
 
+            source_records.append({
+                "filename": output_path.name,
+                "url": source_url,
+            })
+
             print(f"Saved: {output_path}")
+            print(f"Source URL: {source_url}")
             print(f"Characters extracted: {len(clean_text)}")
             successful += 1
 
@@ -92,7 +100,16 @@ def main() -> None:
             print(f"Failed to process {input_path}: {error}")
             failed += 1
 
+    sources_path = output_dir / "sources.jsonl"
+
+    with sources_path.open("w", encoding="utf-8") as file:
+        for record in source_records:
+            file.write(
+                json.dumps(record, ensure_ascii=False) + "\n"
+            )
+
     print(f"\nExtraction complete: {successful} succeeded, {failed} failed.")
+    print(f"Source mapping saved: {sources_path}")
 
     if failed:
         raise SystemExit(1)

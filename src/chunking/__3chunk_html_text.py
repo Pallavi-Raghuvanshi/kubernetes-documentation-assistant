@@ -5,6 +5,7 @@ from pathlib import Path
 
 import yaml
 
+
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / "configs.yaml"
 
@@ -79,13 +80,37 @@ def main() -> None:
     if chunk_size <= 0 or not 0 <= overlap < chunk_size:
         raise ValueError("Invalid chunk_size or chunk_overlap.")
 
-    input_dir = ROOT / "data" / "processed" / "kubernetes"
+    input_dir = ROOT / "data" / "processed" / corpus_name
+    sources_path = input_dir / "sources.jsonl"
     output_path = input_dir / "chunks.jsonl"
 
     if not input_dir.is_dir():
-        raise FileNotFoundError(f"Input directory not found: {input_dir}")
+        raise FileNotFoundError(
+            f"Input directory not found: {input_dir}"
+        )
 
-    # Read extracted text files directly.
+    if not sources_path.exists():
+        raise FileNotFoundError(
+            f"Source mapping not found: {sources_path}. "
+            "Run the extraction script first."
+        )
+
+    # Map each extracted text filename to its original URL.
+    source_urls = {}
+
+    with sources_path.open("r", encoding="utf-8") as file:
+        for line_number, line in enumerate(file, start=1):
+            if not line.strip():
+                continue
+
+            try:
+                record = json.loads(line)
+                source_urls[record["filename"]] = record["url"]
+            except (json.JSONDecodeError, KeyError) as exc:
+                raise ValueError(
+                    f"Invalid source mapping at line {line_number}: {exc}"
+                ) from exc
+
     text_files = sorted(
         path for path in input_dir.glob("*.txt")
         if path.is_file()
@@ -102,19 +127,33 @@ def main() -> None:
 
     with output_path.open("w", encoding="utf-8") as output_file:
         for input_path in text_files:
-            text = input_path.read_text(encoding="utf-8").strip()
+            text = input_path.read_text(
+                encoding="utf-8"
+            ).strip()
 
             if not text:
                 empty_files += 1
                 print(f"Skipping empty file: {input_path.name}")
                 continue
 
-            chunks = split_into_chunks(text, chunk_size, overlap)
+            original_url = source_urls.get(input_path.name)
+
+            if not original_url:
+                raise ValueError(
+                    f"No original URL found for {input_path.name} "
+                    f"in {sources_path}"
+                )
+
+            chunks = split_into_chunks(
+                text,
+                chunk_size,
+                overlap,
+            )
 
             for content in chunks:
                 record = {
                     "chunk_id": f"{corpus_name}_{records_written:05d}",
-                    "source": input_path.name,
+                    "source": original_url,
                     "chunk_size": len(content),
                     "text": content,
                 }
@@ -125,8 +164,10 @@ def main() -> None:
                 records_written += 1
 
             files_processed += 1
+
             print(
                 f"Processed: {input_path.name} | "
+                f"URL: {original_url} | "
                 f"Characters: {len(text)} | "
                 f"Chunks: {len(chunks)}"
             )
