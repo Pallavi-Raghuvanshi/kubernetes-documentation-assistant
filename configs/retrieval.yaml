@@ -1,3 +1,0 @@
-retrieval:
-  default_retriever: bm25
-  top_k: 10

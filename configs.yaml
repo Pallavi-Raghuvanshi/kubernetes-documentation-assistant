@@ -1,0 +1,30 @@
+corpus:
+  name: kubernetes
+  source_type: html
+  source_urls:
+    - https://kubernetes.io/docs/concepts/overview/
+    - https://kubernetes.io/docs/concepts/workloads/pods/
+    - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+    - https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/
+    - https://kubernetes.io/docs/concepts/services-networking/service/
+    - https://kubernetes.io/docs/concepts/architecture/nodes/
+    - https://kubernetes.io/docs/concepts/architecture/control-plane-node-communication/
+    - https://kubernetes.io/docs/concepts/containers/images/
+    - https://kubernetes.io/docs/concepts/containers/container-environment/
+    - 
+  # name: faculty_data
+
+ingestion:
+  timeout_seconds: 30
+
+chunking:
+  chunk_size: 512
+  chunk_overlap: 128
+
+retrieval:
+  default_retriever: bm25
+  top_k: 10
+
+generation:
+  model_name: qwen2.5-1.5b-instruct
+  max_new_tokens: 160

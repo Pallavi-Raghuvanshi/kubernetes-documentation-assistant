@@ -14,16 +14,14 @@ def generate_answer(
     context: str = "",
     max_new_tokens: int = 160,
 ) -> dict:
-    if context.strip():
-        user_prompt = (
-            "Answer using only the supplied context. "
-            "If the context is insufficient, say so. "
-            "Do not invent facts.\n\n"
-            f"Context:\n{context}\n\n"
-            f"Question:\n{question}"
-        )
-    else:
-        user_prompt = question
+    
+    user_prompt = (
+        "Answer using only the supplied context. "
+        "If the context is insufficient, say so. "
+        "Do not invent facts.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question:\n{question}"
+    )
 
     messages = [
         {
@@ -56,11 +54,10 @@ def generate_answer(
     new_tokens = outputs[0, input_length:]
 
     return {
-        "answer": tokenizer.decode(
-            new_tokens, skip_special_tokens=True
-        ).strip(),
+        "answer": tokenizer.decode(new_tokens, skip_special_tokens=True).strip(),
         "generation_latency_seconds": round(generation_time, 3),
         "generated_tokens": len(new_tokens),
+        "input_tokens_count": input_length,
     }
 
 

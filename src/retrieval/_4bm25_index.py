@@ -11,8 +11,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def tokenize(text: str) -> list[str]:
-    """Basic lowercase tokenization for the BM25 baseline."""
-    return re.findall(r"\b\w+\b", text.lower())
+    """Text split into lowercase alphanumeric tokens, ignoring punctuation and whitespace."""
+    return re.findall(
+        r"\b\w+\b",  # word boundary + alphanumeric characters + word boundary
+        text.lower()
+    ) 
 
 
 def load_chunks(path: Path) -> list[dict]:
@@ -20,7 +23,7 @@ def load_chunks(path: Path) -> list[dict]:
 
     with path.open(encoding="utf-8") as file:
         for line in file:
-            if line.strip():
+            if line.strip(): # Ignore empty lines
                 chunks.append(json.loads(line))
 
     if not chunks:
@@ -30,7 +33,7 @@ def load_chunks(path: Path) -> list[dict]:
 
 
 def get_chunks_path() -> Path:
-    config_path = ROOT / "configs" / "corpus.yaml"
+    config_path = ROOT / "configs.yaml"
 
     with config_path.open(encoding="utf-8") as file:
         config = yaml.safe_load(file)
@@ -40,14 +43,14 @@ def get_chunks_path() -> Path:
 
 
 class BM25Index:
-    """Build a BM25 index once and reuse it for multiple queries."""
+    """Build a BM25 index once for the corpus."""
 
     def __init__(self, chunks: list[dict]):
         self.chunks = chunks
-        tokenized_corpus = [
-            tokenize(chunk["text"]) for chunk in chunks
-        ]
-        self.bm25 = BM25Okapi(tokenized_corpus)
+        tokenized_corpus = [tokenize(chunk["text"]) for chunk in chunks]
+        # build doc stats for each unique token in the corpus
+        # doc stats: idf, term frequency, doc length etc.
+        self.bm25 = BM25Okapi(tokenized_corpus) 
 
     @classmethod
     def from_corpus(cls):

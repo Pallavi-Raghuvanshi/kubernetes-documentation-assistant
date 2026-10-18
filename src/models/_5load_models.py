@@ -1,16 +1,17 @@
 
 from pathlib import Path
-
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+CONFIG_PATH = ROOT / "configs.yaml"
+
+with CONFIG_PATH.open(encoding="utf-8") as file:
+    config = yaml.safe_load(file)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-MODEL_DIR = (
-    ROOT_DIR
-    / "models"
-    / "weights"
-    / "qwen2.5-1.5b-instruct"
-)
+MODEL_DIR = ROOT_DIR/ "models"/ "weights"/ config["generation"]["model_name"]
 
 
 def load_model():

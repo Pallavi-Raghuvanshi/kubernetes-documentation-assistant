@@ -1,21 +1,16 @@
 
+import json
 from pathlib import Path
 from urllib.parse import urlparse
 import re
-
 import yaml
 from bs4 import BeautifulSoup
 
+from src.utils.helpers import filename_from_url
+
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / "configs/corpus.yaml"
-
-
-def filename_from_url(url: str) -> str:
-    """Generate the HTML filename used by 1fetch_docs.py."""
-    name = urlparse(url).path.rstrip("/").split("/")[-1] or "index"
-    name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
-    return f"{name}.html"
+CONFIG_PATH = ROOT / "configs.yaml"
 
 
 def extract_text(input_path: Path) -> str:
@@ -53,7 +48,14 @@ def main() -> None:
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
 
     corpus_name = config["corpus"]["name"]
-    source_urls = config["corpus"]["source_urls"]
+    urls_path = ROOT / "data" / "raw" / "kubernetes_urls.jsonl"
+
+    with urls_path.open("r", encoding="utf-8") as file:
+        source_urls = [
+            json.loads(line)["url"]
+            for line in file
+            if line.strip()
+        ]
 
     raw_dir = ROOT / "data" / "raw" / corpus_name
     output_dir = ROOT / "data" / "processed" / corpus_name

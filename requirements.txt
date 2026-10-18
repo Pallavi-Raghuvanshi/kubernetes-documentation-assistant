@@ -13,3 +13,5 @@ torch
 accelerate # helps transformer loan and place models on available hardware (CPU/GPU)
 # models/_6download_models.py
 huggingface_hub
+# kubernetes_scraper/
+scrapy
