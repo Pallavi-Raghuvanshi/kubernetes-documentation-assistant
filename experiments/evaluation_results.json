@@ -1,2 +1,24 @@
 {
+  "version1": {
+    "git_commit": "3f699a557caedfca3a270c34123d2c6dd9505aa3",
+    "retrieval": {
+      "recall_at_10": 0.4667,
+      "precision_at_10": 0.07,
+      "mrr": 0.2661,
+      "hit_rate_at_10": 0.7,
+      "latency_s": 0.1746,
+      "peak_memory_mb": 5695.5355
+    },
+    "generation": {
+      "sentence_integrity_rate": 0.9775,
+      "latency_s": 65.2054,
+      "input_tokens_count": 1156.7,
+      "output_tokens_count": 110.8,
+      "peak_memory_mb": 6374.5848
+    },
+    "overall": {
+      "latency_s": 65.419,
+      "peak_memory_mb": 6461.1953
+    }
+  }
 }

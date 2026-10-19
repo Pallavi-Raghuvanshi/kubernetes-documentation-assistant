@@ -111,9 +111,6 @@ def sentence_integrity_rate(answer: str):
     """
     answer = answer.strip()
 
-    if not answer:
-        return None
-
     sentences = re.findall(
         r"[^.!?]+(?:[.!?]+|$)",
         answer,
@@ -203,6 +200,13 @@ def main() -> None:
     config = load_yaml(CONFIG_PATH)
     queries = get_queries(config)
 
+    evaluation_config = config.get("evaluation", {})
+    evaluation_mode = evaluation_config.get("mode", "both").lower()
+    num_queries = int(evaluation_config.get("num_queries", 0))
+
+    if num_queries > 0:
+        queries = queries[:num_queries]
+
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     # Load existing results to determine the next version.
@@ -213,14 +217,19 @@ def main() -> None:
     else:
         saved_results = {}
 
-    version = get_next_version(saved_results)
-
     # Commit code/configuration changes before evaluation.
-    commit_code_changes()
-    git_commit = get_git_commit()
-
-    print(f"Starting evaluation: {version}")
-    print(f"Git commit: {git_commit}")
+    evaluation_config = config.get("evaluation", {})
+    commit_changes = evaluation_config.get("commit_changes", True)
+    print('starting evaluation...')
+    if commit_changes:
+        version = get_next_version(saved_results)
+        git_commit = commit_code_changes()
+        print(f"Project Version: {version}")
+        print(f"Git commit: {git_commit}")
+    else:
+        version = ''
+        git_commit = "-"
+        print("Skipping Git commit.")
 
     retrieval_config = config.get("retrieval", {})
     generation_config = config.get("generation", {})
@@ -281,6 +290,7 @@ def main() -> None:
             },
             index=index,
             memory_monitor_factory=PeakMemoryMonitor,
+            run_generation=evaluation_mode != "retrieval"
         )
 
         results = pipeline_result["results"]
@@ -295,33 +305,31 @@ def main() -> None:
             pipeline_result["generation_peak_memory_mb"]
         )
 
-        # Calculate retrieval metrics using source-level relevance.
-        relevant_sources = set(
-            query_item.get("relevant_sources", [])
-        )
+        # Calculate retrieval metrics using chunk-level relevance.
+        relevant_chunks = set(query_item["relevant_chunks"])
 
-        if relevant_sources:
+        if relevant_chunks:
             retrieved_at_10 = results[:EVAL_TOP_K]
-            retrieved_sources = [
-                result["source"]
+            retrieved_chunks = [
+                result["chunk_id"]
                 for result in retrieved_at_10
             ]
 
             relevant_ranks = [
                 rank
-                for rank, source in enumerate(
-                    retrieved_sources,
+                for rank, chunk_id in enumerate(
+                    retrieved_chunks,
                     start=1,
                 )
-                if source in relevant_sources
+                if chunk_id in relevant_chunks
             ]
 
             relevant_retrieved = (
-                set(retrieved_sources) & relevant_sources
+                set(retrieved_chunks) & relevant_chunks
             )
 
             recall_values.append(
-                len(relevant_retrieved) / len(relevant_sources)
+                len(relevant_retrieved) / len(relevant_chunks)
             )
             precision_values.append(
                 len(relevant_retrieved) / EVAL_TOP_K
@@ -336,32 +344,38 @@ def main() -> None:
             )
 
         # Record generation metrics from the pipeline result.
-        generation_latencies.append(
-            generation_result["generation_latency_seconds"]
-        )
-        input_token_counts.append(
-            generation_result["input_tokens_count"]
-        )
-        output_token_counts.append(
-            generation_result["generated_tokens"]
-        )
+        if generation_result is not None:
+            generation_latencies.append(
+                generation_result["generation_latency_seconds"]
+            )
+            input_token_counts.append(
+                generation_result["input_tokens_count"]
+            )
+            output_token_counts.append(
+                generation_result["generated_tokens"]
+            )
 
-        sir = sentence_integrity_rate(
-            generation_result["answer"]
-        )
-        if sir is not None:
-            sir_values.append(sir)
+            sir = sentence_integrity_rate(
+                generation_result["answer"]
+            )
+            if sir is not None:
+                sir_values.append(sir)
 
         overall_latencies.append(
             time.perf_counter() - overall_start
         )
 
-        print(
-            f"{query_id}: "
-            f"retrieval={retrieval_latency:.4f}s, "
-            f"generation="
-            f"{generation_result['generation_latency_seconds']:.3f}s"
-        )
+        if generation_result is not None:
+            print(
+                f"{query_id}: "
+                f"retrieval={retrieval_latency:.4f}s, "
+                f"generation="
+                f"{generation_result['generation_latency_seconds']:.3f}s"
+            )
+        else:
+            print(
+                f"{query_id}: retrieval={retrieval_latency:.4f}s"
+            )
 
     overall_peak_memory_mb = overall_memory_monitor.stop()
 
@@ -425,38 +439,40 @@ def main() -> None:
     )
 
     # Do not commit after evaluation.
-    print(f"\n                  Version: {version}")
-    print(f"          Queries processed: {len(queries)}")
-    print(
-        f"Retrieval metrics evaluated: "
-        f"{len(recall_values)} queries"
-    )
-    print(
-        f"     Mean retrieval latency: "
-        f"{version_metrics['retrieval']['latency_s']} s"
-    )
-    print(
-        f"    Mean generation latency: "
-        f"{version_metrics['generation']['latency_s']} s"
-    )
-    print(
-        f"       Mean overall latency: "
-        f"{version_metrics['overall']['latency_s']} s"
-    )
-    print(
-        f"       Retrieval peak memory: "
-        f"{version_metrics['retrieval']['peak_memory_mb']} MB"
-    )
-    print(
-        f"      Generation peak memory: "
-        f"{version_metrics['generation']['peak_memory_mb']} MB"
-    )
-    print(
-        f"          Overall peak memory: "
-        f"{version_metrics['overall']['peak_memory_mb']} MB"
-    )
-    print(f"                 Git commit: {git_commit}")
-    print(f"                      Saved: {OUTPUT_PATH}")
+    if evaluation_mode == "both":
+        print(f"                    Queries: {len(queries)}")
+        print(f"     Mean retrieval latency: {version_metrics['retrieval']['latency_s']} s")
+        print(f"    Mean generation latency: {version_metrics['generation']['latency_s']} s")
+        print(f"       Mean overall latency: {version_metrics['overall']['latency_s']} s")
+        print(f"      Retrieval peak memory: {version_metrics['retrieval']['peak_memory_mb']} MB")
+        print(f"     Generation peak memory: {version_metrics['generation']['peak_memory_mb']} MB")
+        print(f"        Overall peak memory: {version_metrics['overall']['peak_memory_mb']} MB")
+        print(f"                 Git commit: {git_commit}")
+        print(f"                      Saved: {OUTPUT_PATH}")
+    elif evaluation_mode == "retrieval":
+        print(f"                    Queries: {len(queries)}")
+        print(f"                  Recall@10: {version_metrics['retrieval']['recall_at_10']}")
+        print(f"               Precision@10: {version_metrics['retrieval']['precision_at_10']}")
+        print(f"                        MRR: {version_metrics['retrieval']['mrr']}")
+        print(f"                Hit Rate@10: {version_metrics['retrieval']['hit_rate_at_10']}")
+        print(f"     Mean retrieval latency: {version_metrics['retrieval']['latency_s']} s")
+        print(f"      Retrieval peak memory: {version_metrics['retrieval']['peak_memory_mb']} MB")
+    elif evaluation_mode == "generation":
+        print(f"                    Queries: {len(queries)}")
+        print(f"  Mean sentence integrity: {version_metrics['generation']['sentence_integrity_rate']}")
+        print(f"  Mean fluency: {version_metrics['generation']['fluency_rate']}")
+        print(f"  Mean factuality: {version_metrics['generation']['factuality_rate']}")
+        print(f"  Mean coherence: {version_metrics['generation']['coherence_rate']}")
+        print(f"  Mean relevance: {version_metrics['generation']['relevance_rate']}")
+        print(f"  Mean informativeness: {version_metrics['generation']['informativeness_rate']}")
+        print(f"  Mean conciseness: {version_metrics['generation']['conciseness_rate']}")
+        print(f"  Mean creativity: {version_metrics['generation']['creativity_rate']}")
+        print(f"  Mean engagement: {version_metrics['generation']['engagement_rate']}")
+        print(f"  Mean emotional impact: {version_metrics['generation']['emotional_impact_rate']}")
+        print(f"     Mean generation latency: {version_metrics['generation']['latency_s']} s")
+        print(f"     Generation peak memory: {version_metrics['generation']['peak_memory_mb']} MB")
+        print(f"                 Git commit: {git_commit}")
+        print(f"                      Saved: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

@@ -1,58 +1,222 @@
+# Evaluation queries for the Kubernetes RAG pipeline.
+# Each query combines multiple relevant chunks where supported by the supplied corpus.
 queries:
-  - query_id: q001
-    query: "What is Kubernetes and what problems does it solve?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/overview/"
+  - query_id: Q001
+    query: "How do Kubernetes API server logs help diagnose API Priority and Fairness request handling?"
+    answer: "At verbosity level -v=3 or higher, the API server logs an httplog line for each request. The log can include the flow schema and priority level assigned to the request, the number of seats allocated for the initial and final execution stages, and the additional latency of the final stage."
+    relevant_chunks:
+      - kubernetes_08038
+      - kubernetes_08039
 
-  - query_id: q002
-    query: "What is a Pod in Kubernetes?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/workloads/pods/"
+  - query_id: Q002
+    query: "Why must Kubernetes custom resource validation rules use schema paths that can be correlated between old and new objects?"
+    answer: "A transition rule must resolve to a schema node that can be compared between old and new objects. List items and their descendants may not be reliably correlated across updates. Placing a transition rule on an uncorrelatable schema portion can make the rule impossible to apply and cause errors when writing the CustomResourceDefinition."
+    relevant_chunks:
+      - kubernetes_04818
+      - kubernetes_04819
 
-  - query_id: q003
-    query: "How do Kubernetes Deployments manage application replicas?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+  - query_id: Q003
+    query: "What prerequisites and certificate-distribution approach are described for setting up a highly available etcd cluster with kubeadm?"
+    answer: "Each host needs systemd, a Bash-compatible shell, a container runtime, kubelet, and kubeadm. Hosts also need access to the Kubernetes image registry or the required etcd image, plus a way to copy files between hosts, such as SSH and SCP. The guide describes generating certificates on one node and distributing only the necessary files to the other nodes. The etcd instances are configured as static Pods managed by kubelet."
+    relevant_chunks:
+      - kubernetes_21051
+      - kubernetes_21052
 
-  - query_id: q004
-    query: "How does a Kubernetes Service expose an application?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/services-networking/service/"
+  - query_id: Q004
+    query: "Which HTTP methods and endpoints are documented for creating, updating, replacing, and deleting Kubernetes ResourceSlice objects?"
+    answer: "The supplied API reference documents POST /apis/resource.k8s.io/v1/resourceslices to create ResourceSlice objects, PATCH on a named resource to partially update it, and PUT on a named resource to replace it. DELETE on a named resource deletes that ResourceSlice, while DELETE on the collection endpoint deletes a collection of ResourceSlices."
+    relevant_chunks:
+      - kubernetes_23774
+      - kubernetes_23775
 
-  - query_id: q005
-    query: "What happens when a Pod managed by a Deployment fails?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
-      - "https://kubernetes.io/docs/concepts/workloads/pods/"
+  - query_id: Q005
+    query: "How do Kubernetes local volumes differ from hostPath volumes, and what availability risks do local volumes introduce?"
+    answer: "A local volume represents a mounted local storage device, such as a disk, partition, or directory, and can only be used with a statically created PersistentVolume because dynamic provisioning is unsupported. Compared with hostPath volumes, local volumes provide a more durable and portable approach without manually scheduling Pods to nodes because Kubernetes uses node affinity on the PersistentVolume. However, if the underlying node becomes unhealthy, the volume may become inaccessible and the Pod may be unable to run. Applications must tolerate reduced availability and possible data loss."
+    relevant_chunks:
+      - kubernetes_26570
+      - kubernetes_26571
+      - kubernetes_26572
 
-  - query_id: q006
-    query: "What is the difference between a Pod and a Deployment?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/workloads/pods/"
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+  - query_id: Q006
+    query: "What roles do external provisioners and resizers play in Kubernetes VolumeAttributesClass support?"
+    answer: "The supplied documentation states that VolumeAttributesClass support is implemented in the CSI external-provisioner, but other external provisioners can also be used if they follow the Kubernetes-defined specification. Each VolumeAttributesClass has a resizer that determines which volume plugin is used to modify PersistentVolumes, and the driver's driverName must be specified."
+    relevant_chunks:
+      - kubernetes_26388
+      - kubernetes_26389
 
-  - query_id: q007
-    query: "How does a Service route traffic to Pods selected by labels?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/services-networking/service/"
-      - "https://kubernetes.io/docs/concepts/workloads/pods/"
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+  - query_id: Q007
+    query: "When a Pod managed by a StatefulSet is deleted, what behavior does the tutorial demonstrate and how can recovery be monitored?"
+    answer: "The tutorial deletes the web-1 Pod and then watches Pods selected by the app=nginx label until web-1 returns to the Running and Ready state. The example output shows the replacement Pod moving through Terminating, Pending, and ContainerCreating states before becoming Running."
+    relevant_chunks:
+      - kubernetes_02076
+      - kubernetes_02077
 
-  - query_id: q008
-    query: "What is the purpose of the Kubernetes control plane, and how does it relate to workload management?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/overview/"
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
-      - "https://kubernetes.io/docs/concepts/workloads/pods/"
+  - query_id: Q008
+    query: "How can ReplicaSet output help assess a Kubernetes Deployment rollout, and what states can a Deployment enter?"
+    answer: "The supplied example uses kubectl get rs to inspect ReplicaSets during a rollout. The older ReplicaSet has zero desired and current replicas, while the newer ReplicaSet has three desired, current, and ready replicas. A Deployment can be progressing while creating a new ReplicaSet, complete, or failed to progress."
+    relevant_chunks:
+      - kubernetes_05734
+      - kubernetes_05735
 
-  - query_id: q009
-    query: "How can a Deployment be scaled to run more replicas?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+  - query_id: Q009
+    query: "Which kubeadm configuration options affect node upgrades, certificate renewal, etcd upgrades, and preflight checks?"
+    answer: "The supplied kubeadm configuration reference describes certificateRenewal, which defaults to true; dryRun, which reports planned changes without applying them; etcdUpgrade, which also defaults to true; ignorePreflightErrors, which specifies preflight errors to ignore; and skipPhases, which lists upgrade phases to omit. The patches field configures patches applied to components deployed by kubeadm during an upgrade."
+    relevant_chunks:
+      - kubernetes_11198
+      - kubernetes_11199
+      - kubernetes_11200
 
-  - query_id: q010
-    query: "How do Pods, Deployments, and Services work together to run and expose an application?"
-    relevant_sources:
-      - "https://kubernetes.io/docs/concepts/workloads/pods/"
-      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
-      - "https://kubernetes.io/docs/concepts/services-networking/service/"
+  - query_id: Q010
+    query: "What configuration is required for Kubernetes Memory Manager to align memory resources with CPU and topology information, including Windows support?"
+    answer: "The CPU Manager must be enabled with an appropriate policy, and the Topology Manager must also be enabled with an appropriate policy on the node. Windows support requires the WindowsCPUAndMemoryAffinity feature gate to be enabled for relevant cluster components and support from the container runtime. On Windows, only the None and BestEffort policies are supported."
+    relevant_chunks:
+      - kubernetes_15707
+      - kubernetes_15708
+      - kubernetes_15709
+      - kubernetes_15710
+
+  - query_id: Q011
+    query: "What types of metric metadata appear in the supplied Kubernetes API server instrumentation excerpts?"
+    answer: "The excerpts list metric metadata for the kube-apiserver /metrics endpoint, including histograms, gauges, and counters. They also show labels such as grpc_status_code, method_name, provider_name, code, and method. The excerpts do not establish the exact meaning of each individual metric."
+    relevant_chunks:
+      - kubernetes_15831
+      - kubernetes_15832
+
+  - query_id: Q012
+    query: "How does a Kubernetes node register itself with the API server, and what do the kubelet registration flags control?"
+    answer: "When --register-node is true, which is the default, kubelet attempts to register the node with the API server. The --kubeconfig option specifies credentials used to authenticate to the API server, --cloud-provider controls how kubelet communicates with a cloud provider for metadata, and --register-with-taints specifies taints applied during registration. The taints option has no effect when --register-node is false."
+    relevant_chunks:
+      - kubernetes_16976
+      - kubernetes_16977
+      - kubernetes_16978
+
+  - query_id: Q013
+    query: "What information can API Priority and Fairness debug logs provide about request execution stages?"
+    answer: "At verbosity level -v=3 or higher, API server request logs can include the flow schema and priority level used to classify a request. They can also report the seats determined for the initial execution stage, the seats determined for the final stage including associated watch notifications, and the additional latency of that final stage."
+    relevant_chunks:
+      - kubernetes_08038
+      - kubernetes_08039
+
+  - query_id: Q014
+    query: "Why can a Kubernetes CustomResourceDefinition reject a transition rule that refers to list items or their descendants?"
+    answer: "A transition rule must reference a schema node that can be correlated between an existing object and a later update. List items and their descendants, such as spec.foo[10].bar, cannot necessarily be correlated between versions of an object. If a transition rule is placed on an uncorrelatable schema portion, Kubernetes can generate an error when the CustomResourceDefinition is written."
+    relevant_chunks:
+      - kubernetes_04818
+      - kubernetes_04819
+
+  - query_id: Q015
+    query: "Why does a kubeadm-based highly available etcd setup use static Pods, and what must each host have installed?"
+    answer: "The supplied guide sets up etcd instances as static Pods managed by kubelet. Each host must have systemd, a Bash-compatible shell, a container runtime, kubelet, and kubeadm. Hosts also need access to the required etcd container image, either through the registry or by obtaining the image in advance."
+    relevant_chunks:
+      - kubernetes_21051
+      - kubernetes_21052
+
+  - query_id: Q016
+    query: "How does the ResourceSlice API distinguish operations on a single resource from operations on a collection?"
+    answer: "The supplied API reference uses named-resource endpoints for PATCH, PUT, and DELETE operations on an individual ResourceSlice. Collection endpoints are used for creating resources with POST and deleting a collection with DELETE. The excerpts identify these HTTP methods and paths but do not provide additional details about request bodies or responses."
+    relevant_chunks:
+      - kubernetes_23774
+      - kubernetes_23775
+
+  - query_id: Q017
+    query: "Why must workloads using Kubernetes local volumes account for node failures?"
+    answer: "A local volume is tied to a storage device on a particular node, and Kubernetes uses node affinity on its PersistentVolume to account for that placement. If the node becomes unhealthy, the volume can become inaccessible and the Pod using it may be unable to run. Workloads must therefore tolerate reduced availability and possible data loss, depending on the durability of the underlying disk."
+    relevant_chunks:
+      - kubernetes_26571
+      - kubernetes_26572
+
+  - query_id: Q018
+    query: "Can Kubernetes VolumeAttributesClass use an external provisioner other than the CSI external-provisioner, and what is required of its resizer?"
+    answer: "Yes. Although the documented support is implemented in kubernetes-csi/external-provisioner, other external provisioners may be used if they follow the Kubernetes-defined specification. A VolumeAttributesClass also has a resizer that determines the volume plugin used to modify PersistentVolumes, and the driverName field must be specified."
+    relevant_chunks:
+      - kubernetes_26388
+      - kubernetes_26389
+
+  - query_id: Q019
+    query: "What Pod states can appear when a StatefulSet recreates a deleted Pod, and what indicates successful recovery?"
+    answer: "The supplied tutorial shows the deleted web-1 Pod in Terminating state, followed by a replacement that enters Pending and ContainerCreating. Successful recovery is indicated when web-1 becomes Running and Ready, as observed by watching the Pods selected by app=nginx."
+    relevant_chunks:
+      - kubernetes_02076
+      - kubernetes_02077
+
+  - query_id: Q020
+    query: "How can a Deployment's ReplicaSets indicate whether a rollout has replaced the previous version?"
+    answer: "In the supplied example, kubectl get rs shows the previous ReplicaSet with zero desired and current replicas and the newer ReplicaSet with three desired, current, and ready replicas. This indicates that the newer ReplicaSet is serving the configured replicas while the older one has been scaled down. The Deployment status can separately indicate whether the rollout is progressing, complete, or has failed to progress."
+    relevant_chunks:
+      - kubernetes_05734
+      - kubernetes_05735
+
+  - query_id: Q021
+    query: "How can dry-run and skipPhases change the behavior of a kubeadm node upgrade?"
+    answer: "The dryRun option allows kubeadm to report what would be done without applying changes. The skipPhases option specifies phases to omit during command execution, and the available phases can be inspected with kubeadm upgrade node phase --help. The configuration also includes options for certificate renewal, etcd upgrades, and ignoring selected preflight errors."
+    relevant_chunks:
+      - kubernetes_11199
+      - kubernetes_11200
+
+  - query_id: Q022
+    query: "What are the Windows-specific prerequisites and policy limitations for Kubernetes Memory Manager resource alignment?"
+    answer: "Windows support requires enabling the WindowsCPUAndMemoryAffinity feature gate for all relevant cluster components and having a compatible container runtime. The supplied documentation states that only the None and BestEffort policies are supported on Windows. Resource alignment also depends on suitable CPU Manager and Topology Manager configuration."
+    relevant_chunks:
+      - kubernetes_15708
+      - kubernetes_15709
+      - kubernetes_15710
+
+  - query_id: Q023
+    query: "Which label dimensions are shown in the supplied Kubernetes API server metric excerpts, and which metric types are represented?"
+    answer: "The excerpts include labels such as grpc_status_code, method_name, provider_name, code, and method. The metric types shown include Histogram, Gauge, and Counter for the kube-apiserver /metrics endpoint. The provided snippets do not map every label set to a specific metric name."
+    relevant_chunks:
+      - kubernetes_15831
+      - kubernetes_15832
+
+  - query_id: Q024
+    query: "What happens if kubelet's --register-node option is disabled when using --register-with-taints?"
+    answer: "The supplied node documentation states that --register-node controls whether kubelet attempts to register itself with the API server and is true by default. The --register-with-taints option specifies taints to apply during registration, but it has no effect when --register-node is false. Kubelet also uses --kubeconfig for API server authentication."
+    relevant_chunks:
+      - kubernetes_16976
+      - kubernetes_16977
+      - kubernetes_16978
+
+  - query_id: Q025
+    query: "What do the apf_iseats, apf_fseats, and apf_additionalLatency fields mean in Kubernetes API server logs?"
+    answer: "The apf_iseats field records the seats determined for the initial, normal execution stage of a request. The apf_fseats field records the seats determined for the final stage, accounting for associated watch notifications. The apf_additionalLatency field records the duration of that final stage. These fields are described as part of API server request logging at verbosity level -v=3 or higher."
+    relevant_chunks:
+      - kubernetes_08038
+      - kubernetes_08039
+
+  - query_id: Q026
+    query: "How does Kubernetes determine whether a transition rule in a custom resource schema can be applied across updates?"
+    answer: "The schema path used by a transition rule must resolve to a node that can be compared between the old and new versions of an object. List items and their descendants may not be reliably correlated across updates. A rule placed on an uncorrelatable portion of the schema can therefore be rejected when the CustomResourceDefinition is written."
+    relevant_chunks:
+      - kubernetes_04818
+      - kubernetes_04819
+
+  - query_id: Q027
+    query: "What operational dependencies should be checked before configuring a kubeadm-managed highly available etcd cluster?"
+    answer: "Each host should have systemd, a Bash-compatible shell, a container runtime, kubelet, and kubeadm. The hosts need access to the Kubernetes container image registry or the required etcd image, along with a mechanism such as SSH and SCP for copying files. The documented setup generates certificates on one node and distributes only the necessary files to the other nodes."
+    relevant_chunks:
+      - kubernetes_21051
+      - kubernetes_21052
+
+  - query_id: Q028
+    query: "How do PersistentVolume node affinity and local storage availability interact in Kubernetes?"
+    answer: "Kubernetes uses node affinity on a PersistentVolume to understand the node constraints of a local volume, allowing the system to account for storage placement without manually scheduling Pods to nodes. However, the volume still depends on the underlying node's availability. If that node becomes unhealthy, the volume can become inaccessible and the Pod may not run, so applications must account for reduced availability and potential data loss."
+    relevant_chunks:
+      - kubernetes_26570
+      - kubernetes_26571
+      - kubernetes_26572
+
+  - query_id: Q029
+    query: "What is the relationship between VolumeAttributesClass, external provisioning, and volume modification in Kubernetes?"
+    answer: "The supplied documentation identifies the CSI external-provisioner as the implementation supporting VolumeAttributesClass, while allowing other external provisioners that comply with the Kubernetes-defined specification. For modification of PersistentVolumes, each VolumeAttributesClass has a resizer that determines the volume plugin used. The resizer must specify driverName."
+    relevant_chunks:
+      - kubernetes_26388
+      - kubernetes_26389
+
+  - query_id: Q030
+    query: "How can you combine Pod status monitoring and Deployment ReplicaSet inspection to diagnose workload rollout behavior?"
+    answer: "For a StatefulSet Pod recreation, the supplied tutorial demonstrates watching Pods with kubectl get pod -l app=nginx --watch and checking whether the recreated Pod progresses from Pending or ContainerCreating to Running and Ready. For a Deployment rollout, kubectl get rs can show whether the older ReplicaSet has been scaled down and the newer ReplicaSet has the desired replicas ready. Deployment status can also indicate whether the rollout is progressing, complete, or has failed to progress."
+    relevant_chunks:
+      - kubernetes_02076
+      - kubernetes_02077
+      - kubernetes_05734
+      - kubernetes_05735

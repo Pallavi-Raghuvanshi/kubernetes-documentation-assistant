@@ -19,6 +19,7 @@ def run_pipeline(
     config: dict,
     index=None,
     memory_monitor_factory=None,
+    run_generation: bool = True,
 ) -> dict:
     if not question:
         raise ValueError("Question cannot be empty.")
@@ -57,6 +58,15 @@ def run_pipeline(
         )
 
     context = "\n\n".join(context_parts)
+
+    if not run_generation:
+        return {
+            "results": results,
+            "generation_result": None,
+            "retrieval_latency_seconds": retrieval_latency,
+            "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
+            "generation_peak_memory_mb": None,
+        }
 
     generation_memory_monitor = (
         memory_monitor_factory()
