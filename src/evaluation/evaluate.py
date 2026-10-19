@@ -1,4 +1,4 @@
-
+# evaluate.py
 import json
 import re
 import subprocess
@@ -65,8 +65,8 @@ def run_git(args: list[str]) -> subprocess.CompletedProcess:
     )
 
 
-def commit_code_changes() -> None:
-    """Stage and commit all non-ignored project changes."""
+def commit_code_changes() -> str:
+    """Stage and commit changes, then return the current Git commit hash."""
     run_git(["add", "-A"])
 
     staged_changes = subprocess.run(
@@ -88,6 +88,7 @@ def commit_code_changes() -> None:
             f"{staged_changes.stderr}"
         )
 
+    return run_git(["rev-parse", "HEAD"]).stdout.strip()
 
 def get_queries(config: dict) -> list[dict]:
     """Load queries from queries.yaml, falling back to configs.yaml."""

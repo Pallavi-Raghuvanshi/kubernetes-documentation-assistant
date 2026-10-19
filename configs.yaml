@@ -1,18 +1,7 @@
+# configs.yaml
 corpus:
   name: kubernetes
   source_type: html
-  source_urls:
-    - https://kubernetes.io/docs/concepts/overview/
-    - https://kubernetes.io/docs/concepts/workloads/pods/
-    - https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
-    - https://kubernetes.io/docs/concepts/workloads/controllers/ttlafterfinished/
-    - https://kubernetes.io/docs/concepts/services-networking/service/
-    - https://kubernetes.io/docs/concepts/architecture/nodes/
-    - https://kubernetes.io/docs/concepts/architecture/control-plane-node-communication/
-    - https://kubernetes.io/docs/concepts/containers/images/
-    - https://kubernetes.io/docs/concepts/containers/container-environment/
-    - 
-  # name: faculty_data
 
 ingestion:
   timeout_seconds: 30
@@ -30,6 +19,6 @@ generation:
   max_new_tokens: 160
 
 evaluation:
-  mode: both            # retrieval, generation, or both
+  mode: retrieval            # retrieval, generation, or both
   num_queries: 0        # Set to 0 to evaluate all queries
-  commit_changes: true  # to test temporary code change
+  commit_changes: false  # to test temporary code change
