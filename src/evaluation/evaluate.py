@@ -3,13 +3,15 @@ import json
 import re
 import subprocess
 import time
+import threading
 from pathlib import Path
 from statistics import mean, median
 
+import psutil
 import yaml
 
 from src.retrieval._4bm25_index import BM25Index
-from src.generation._6llm_inference import generate_answer
+from src.rag_pipeline import run_pipeline
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -147,6 +149,56 @@ def round_metric(value, digits: int = 4):
     return round(value, digits) if value is not None else None
 
 
+class PeakMemoryMonitor:
+    """Sample process RSS and record the maximum observed value."""
+
+    def __init__(self, interval: float = 0.01):
+        self.process = psutil.Process()
+        self.interval = interval
+        self.peak_mb = 0.0
+        self._stop_event = threading.Event()
+        self._thread = None
+
+    def _sample(self):
+        while not self._stop_event.is_set():
+            try:
+                memory_mb = (
+                    self.process.memory_info().rss / (1024 ** 2)
+                )
+                self.peak_mb = max(self.peak_mb, memory_mb)
+            except psutil.Error:
+                pass
+
+            self._stop_event.wait(self.interval)
+
+    def start(self):
+        self.peak_mb = (
+            self.process.memory_info().rss / (1024 ** 2)
+        )
+        self._stop_event.clear()
+        self._thread = threading.Thread(
+            target=self._sample,
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> float:
+        self._stop_event.set()
+
+        if self._thread:
+            self._thread.join()
+
+        try:
+            self.peak_mb = max(
+                self.peak_mb,
+                self.process.memory_info().rss / (1024 ** 2),
+            )
+        except psutil.Error:
+            pass
+
+        return self.peak_mb
+
+
 def main() -> None:
     config = load_yaml(CONFIG_PATH)
     queries = get_queries(config)
@@ -154,7 +206,7 @@ def main() -> None:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     # Load existing results to determine the next version.
-    if OUTPUT_PATH.exists():
+    if OUTPUT_PATH.exists() and OUTPUT_PATH.stat().st_size > 0:
         saved_results = json.loads(
             OUTPUT_PATH.read_text(encoding="utf-8")
         )
@@ -185,6 +237,7 @@ def main() -> None:
 
     retrieval_latencies = []
     recall_values = []
+    precision_values = []
     mrr_values = []
     hit_rate_values = []
 
@@ -195,23 +248,52 @@ def main() -> None:
 
     overall_latencies = []
 
+    retrieval_peak_memory_values = []
+    generation_peak_memory_values = []
+
+    # Measures overall evaluation-query processing after index creation.
+    overall_memory_monitor = PeakMemoryMonitor()
+    overall_memory_monitor.start()
+
     for query_item in queries:
         query_id = query_item["query_id"]
         question = query_item["query"]
 
-        # Measure retrieval, requesting at least 10 results.
         overall_start = time.perf_counter()
 
-        retrieval_start = time.perf_counter()
-        results = index.search(
-            question,
-            top_k=max(EVAL_TOP_K, generation_top_k),
-        )
-        retrieval_latency = (
-            time.perf_counter() - retrieval_start
+        # Run the RAG pipeline and monitor its memory usage.
+        pipeline_memory_monitor = PeakMemoryMonitor()
+        pipeline_memory_monitor.start()
+
+
+        pipeline_result = run_pipeline(
+            question=question,
+            config={
+                **config,
+                "retrieval": {
+                    **config.get("retrieval", {}),
+                    "top_k": max(EVAL_TOP_K, generation_top_k),
+                },
+                "generation": {
+                    **config.get("generation", {}),
+                    "max_new_tokens": max_new_tokens,
+                },
+            },
+            index=index,
+            memory_monitor_factory=PeakMemoryMonitor,
         )
 
+        results = pipeline_result["results"]
+        generation_result = pipeline_result["generation_result"]
+        retrieval_latency = pipeline_result["retrieval_latency_seconds"]
+
         retrieval_latencies.append(retrieval_latency)
+        retrieval_peak_memory_values.append(
+            pipeline_result["retrieval_peak_memory_mb"]
+        )
+        generation_peak_memory_values.append(
+            pipeline_result["generation_peak_memory_mb"]
+        )
 
         # Calculate retrieval metrics using source-level relevance.
         relevant_sources = set(
@@ -241,6 +323,9 @@ def main() -> None:
             recall_values.append(
                 len(relevant_retrieved) / len(relevant_sources)
             )
+            precision_values.append(
+                len(relevant_retrieved) / EVAL_TOP_K
+            )
             mrr_values.append(
                 1.0 / relevant_ranks[0]
                 if relevant_ranks
@@ -250,25 +335,7 @@ def main() -> None:
                 1.0 if relevant_ranks else 0.0
             )
 
-        # Prepare context using configured top_k.
-        context_parts = []
-
-        for result in results[:generation_top_k]:
-            context_parts.append(
-                f"[Source {result['rank']}] "
-                f"{result['source']}\n"
-                f"{result['text']}"
-            )
-
-        context = "\n\n".join(context_parts)
-
-        # Measure generation separately from retrieval.
-        generation_result = generate_answer(
-            question=question,
-            context=context,
-            max_new_tokens=max_new_tokens,
-        )
-
+        # Record generation metrics from the pipeline result.
         generation_latencies.append(
             generation_result["generation_latency_seconds"]
         )
@@ -296,12 +363,16 @@ def main() -> None:
             f"{generation_result['generation_latency_seconds']:.3f}s"
         )
 
-    # Memory metrics remain null until reliably measured.
+    overall_peak_memory_mb = overall_memory_monitor.stop()
+
     version_metrics = {
         "git_commit": git_commit,
         "retrieval": {
             "recall_at_10": round_metric(
                 average(recall_values)
+            ),
+            "precision_at_10": round_metric(
+                average(precision_values)
             ),
             "mrr": round_metric(average(mrr_values)),
             "hit_rate_at_10": round_metric(
@@ -310,7 +381,9 @@ def main() -> None:
             "latency_s": round_metric(
                 average(retrieval_latencies)
             ),
-            "peak_memory_mb": None,
+            "peak_memory_mb": round_metric(
+                average(retrieval_peak_memory_values)
+            ),
         },
         "generation": {
             "sentence_integrity_rate": round_metric(
@@ -325,13 +398,17 @@ def main() -> None:
             "output_tokens_count": round_metric(
                 average(output_token_counts), 2
             ),
-            "peak_memory_mb": None,
+            "peak_memory_mb": round_metric(
+                average(generation_peak_memory_values)
+            ),
         },
         "overall": {
             "latency_s": round_metric(
                 average(overall_latencies)
             ),
-            "peak_memory_mb": None,
+            "peak_memory_mb": round_metric(
+                overall_peak_memory_mb
+            ),
         },
     }
 
@@ -347,28 +424,39 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    # Do not commit after evaluation. The metrics file stays
-    # uncommitted until a subsequent code commit includes it.
-    print(f"\nVersion: {version}")
-    print(f"Queries processed: {len(queries)}")
+    # Do not commit after evaluation.
+    print(f"\n                  Version: {version}")
+    print(f"          Queries processed: {len(queries)}")
     print(
         f"Retrieval metrics evaluated: "
         f"{len(recall_values)} queries"
     )
     print(
-        f"Mean retrieval latency: "
+        f"     Mean retrieval latency: "
         f"{version_metrics['retrieval']['latency_s']} s"
     )
     print(
-        f"Mean generation latency: "
+        f"    Mean generation latency: "
         f"{version_metrics['generation']['latency_s']} s"
     )
     print(
-        f"Mean overall latency: "
+        f"       Mean overall latency: "
         f"{version_metrics['overall']['latency_s']} s"
     )
-    print(f"Git commit: {git_commit}")
-    print(f"Saved: {OUTPUT_PATH}")
+    print(
+        f"       Retrieval peak memory: "
+        f"{version_metrics['retrieval']['peak_memory_mb']} MB"
+    )
+    print(
+        f"      Generation peak memory: "
+        f"{version_metrics['generation']['peak_memory_mb']} MB"
+    )
+    print(
+        f"          Overall peak memory: "
+        f"{version_metrics['overall']['peak_memory_mb']} MB"
+    )
+    print(f"                 Git commit: {git_commit}")
+    print(f"                      Saved: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":
