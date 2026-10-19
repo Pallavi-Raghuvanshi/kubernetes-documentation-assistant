@@ -1,5 +1,5 @@
 {
-  "version1": {
+  "v1_doc_level_ret_eval": {
     "git_commit": "3f699a557caedfca3a270c34123d2c6dd9505aa3",
     "retrieval": {
       "recall_at_10": 0.4667,
@@ -21,30 +21,8 @@
       "peak_memory_mb": 6461.1953
     }
   },
-  "test1": {
-    "git_commit": "-",
-    "retrieval": {
-      "recall_at_10": 0.4667,
-      "precision_at_10": 0.07,
-      "mrr": 0.2661,
-      "hit_rate_at_10": 0.7,
-      "latency_s": 0.3663,
-      "peak_memory_mb": null
-    },
-    "generation": {
-      "sentence_integrity_rate": null,
-      "latency_s": null,
-      "input_tokens_count": null,
-      "output_tokens_count": null,
-      "peak_memory_mb": null
-    },
-    "overall": {
-      "latency_s": 39.2122,
-      "peak_memory_mb": null
-    }
-  },
-  "test2": {
-    "git_commit": "-",
+  "chunk_level_retrieval": {
+    "git_commit": "",
     "retrieval": {
       "recall_at_10": 0.4194,
       "precision_at_10": 0.1,

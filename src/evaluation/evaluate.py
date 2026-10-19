@@ -41,19 +41,6 @@ def get_git_commit() -> str:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
 
-
-def get_next_version(saved_results: dict) -> str:
-    """Return the next sequential version name."""
-    version_numbers = []
-
-    for key in saved_results:
-        match = re.fullmatch(r"version(\d+)", key)
-        if match:
-            version_numbers.append(int(match.group(1)))
-
-    return f"version{max(version_numbers, default=0) + 1}"
-
-
 def run_git(args: list[str]) -> subprocess.CompletedProcess:
     """Run a Git command from the project root."""
     return subprocess.run(
@@ -219,17 +206,16 @@ def main() -> None:
         saved_results = {}
 
     # Commit code/configuration changes before evaluation.
-    evaluation_config = config.get("evaluation", {})
-    commit_changes = evaluation_config.get("commit_changes", True)
+    evaluation_config = config["evaluation"]
+    commit_changes = evaluation_config["commit_changes"]
+    version = evaluation_config["version_name"]
     print('starting evaluation...')
     if commit_changes:
-        version = get_next_version(saved_results)
         git_commit = commit_code_changes()
         print(f"Project Version: {version}")
         print(f"Git commit: {git_commit}")
     else:
-        version = ''
-        git_commit = "-"
+        git_commit = ""
         print("Skipping Git commit.")
 
     retrieval_config = config.get("retrieval", {})
