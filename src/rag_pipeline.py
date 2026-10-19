@@ -7,7 +7,7 @@ from src.retrieval._4bm25_index import BM25Index
 from src.generation._6llm_inference import generate_answer
 
 with open("queries.yaml", "r", encoding="utf-8") as file:
-    queries = yaml.safe_load(file)["queries"][:2]  # Limit to the first two queries for demonstration
+    queries = yaml.safe_load(file)["queries"]
 
 with open("configs.yaml", "r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
