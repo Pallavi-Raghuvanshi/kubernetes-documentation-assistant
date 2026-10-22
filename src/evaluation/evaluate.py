@@ -1,17 +1,22 @@
-# evaluate.py
+# src.evaluate.evaluate.py
 import json
-import re
 import subprocess
 import time
-import threading
 from pathlib import Path
-from statistics import mean, median
-
-import psutil
 import yaml
 
-from src.retrieval._4bm25_index import BM25Index
+from src.retrieval.__4bm25_index import load_index
 from src.rag_pipeline import run_pipeline
+from src.evaluation.generation_metrics import (
+    evaluate_generation,
+    sentence_integrity_rate,
+)
+from src.evaluation.retrieval_metrics import (
+    average,
+    round_metric,
+    PeakMemoryMonitor,
+    evaluate_retrieval,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,11 +26,21 @@ OUTPUT_PATH = ROOT / "experiments" / "evaluation_results.json"
 
 EVAL_TOP_K = 10
 
-
 def load_yaml(path: Path) -> dict:
     with path.open(encoding="utf-8") as file:
         return yaml.safe_load(file) or {}
 
+def get_queries(config: dict) -> list[dict]:
+    """Load queries from queries.yaml, falling back to configs.yaml."""
+    if QUERIES_PATH.exists():
+        queries = load_yaml(QUERIES_PATH).get("queries", [])
+    else:
+        queries = config.get("queries", [])
+
+    if not queries:
+        raise ValueError("No benchmark queries found.")
+
+    return queries
 
 def get_git_commit() -> str:
     """Return the current Git commit hash."""
@@ -77,112 +92,6 @@ def commit_code_changes() -> str:
 
     return run_git(["rev-parse", "HEAD"]).stdout.strip()
 
-def get_queries(config: dict) -> list[dict]:
-    """Load queries from queries.yaml, falling back to configs.yaml."""
-    if QUERIES_PATH.exists():
-        queries = load_yaml(QUERIES_PATH).get("queries", [])
-    else:
-        queries = config.get("queries", [])
-
-    if not queries:
-        raise ValueError("No benchmark queries found.")
-
-    return queries
-
-
-def sentence_integrity_rate(answer: str):
-    """
-    Heuristic: proportion of detected sentences ending in
-    '.', '!' or '?'.
-
-    This detects possible truncation, not factual correctness.
-    """
-    answer = answer.strip()
-
-    sentences = re.findall(
-        r"[^.!?]+(?:[.!?]+|$)",
-        answer,
-    )
-    sentences = [
-        sentence.strip()
-        for sentence in sentences
-        if sentence.strip()
-    ]
-
-    if not sentences:
-        return None
-
-    complete = sum(
-        bool(re.search(r"[.!?][\"')\]]*$", sentence))
-        for sentence in sentences
-    )
-
-    return complete / len(sentences)
-
-
-def average(values: list):
-    values = [value for value in values if value is not None]
-    return mean(values) if values else None
-
-
-def median_value(values: list):
-    values = [value for value in values if value is not None]
-    return median(values) if values else None
-
-
-def round_metric(value, digits: int = 4):
-    return round(value, digits) if value is not None else None
-
-
-class PeakMemoryMonitor:
-    """Sample process RSS and record the maximum observed value."""
-
-    def __init__(self, interval: float = 0.01):
-        self.process = psutil.Process()
-        self.interval = interval
-        self.peak_mb = 0.0
-        self._stop_event = threading.Event()
-        self._thread = None
-
-    def _sample(self):
-        while not self._stop_event.is_set():
-            try:
-                memory_mb = (
-                    self.process.memory_info().rss / (1024 ** 2)
-                )
-                self.peak_mb = max(self.peak_mb, memory_mb)
-            except psutil.Error:
-                pass
-
-            self._stop_event.wait(self.interval)
-
-    def start(self):
-        self.peak_mb = (
-            self.process.memory_info().rss / (1024 ** 2)
-        )
-        self._stop_event.clear()
-        self._thread = threading.Thread(
-            target=self._sample,
-            daemon=True,
-        )
-        self._thread.start()
-
-    def stop(self) -> float:
-        self._stop_event.set()
-
-        if self._thread:
-            self._thread.join()
-
-        try:
-            self.peak_mb = max(
-                self.peak_mb,
-                self.process.memory_info().rss / (1024 ** 2),
-            )
-        except psutil.Error:
-            pass
-
-        return self.peak_mb
-
 
 def main() -> None:
     config = load_yaml(CONFIG_PATH)
@@ -228,10 +137,13 @@ def main() -> None:
         generation_config.get("max_new_tokens", 160)
     )
 
-    # Build the index once and reuse it for all queries.
-    index = BM25Index.from_corpus()
+    # Load the prebuilt BM25 index once and reuse it for all queries.
+    chunks, bm25 = load_index()
 
     retrieval_latencies = []
+    retrieval_peak_memory_values = []
+    generation_peak_memory_values = []
+
     recall_values = []
     precision_values = []
     mrr_values = []
@@ -240,12 +152,13 @@ def main() -> None:
     generation_latencies = []
     input_token_counts = []
     output_token_counts = []
+
+    faithfulness_values = []
+    answer_completeness_values = []
+    hallucination_rate_values = []
     sir_values = []
 
     overall_latencies = []
-
-    retrieval_peak_memory_values = []
-    generation_peak_memory_values = []
 
     # Measures overall evaluation-query processing after index creation.
     overall_memory_monitor = PeakMemoryMonitor()
@@ -257,11 +170,7 @@ def main() -> None:
 
         overall_start = time.perf_counter()
 
-        # Run the RAG pipeline and monitor its memory usage.
-        pipeline_memory_monitor = PeakMemoryMonitor()
-        pipeline_memory_monitor.start()
-
-
+        # Run the RAG pipeline and monitor its memory usage.    
         pipeline_result = run_pipeline(
             question=question,
             config={
@@ -275,12 +184,28 @@ def main() -> None:
                     "max_new_tokens": max_new_tokens,
                 },
             },
-            index=index,
+            index=(chunks, bm25),
             memory_monitor_factory=PeakMemoryMonitor,
-            run_generation=evaluation_mode != "retrieval"
+            run_generation=evaluation_mode != "retrieval",
         )
 
+        context = pipeline_result["context"]
+
         results = pipeline_result["results"]
+
+        #----------------------------------------------
+        print("\n--- Retrieval Debug: Q001 ---")
+        print("Expected relevant chunks:", query_item["relevant_chunks"])
+
+        for result in results[:10]:
+            print(
+                f"Rank: {result['rank']} | "
+                f"Chunk ID: {result['chunk_id']} | "
+                f"Score: {result['score']:.4f} | "
+                f"Source: {result['source']}"
+            )
+        #----------------------------------------------
+
         generation_result = pipeline_result["generation_result"]
         retrieval_latency = pipeline_result["retrieval_latency_seconds"]
 
@@ -293,42 +218,17 @@ def main() -> None:
         )
 
         # Calculate retrieval metrics using chunk-level relevance.
-        relevant_chunks = set(query_item["relevant_chunks"])
+        retrieval_scores = evaluate_retrieval(
+            results=results,
+            relevant_chunks=set(query_item["relevant_chunks"]),
+            top_k=EVAL_TOP_K,
+        )
 
-        if relevant_chunks:
-            retrieved_at_10 = results[:EVAL_TOP_K]
-            retrieved_chunks = [
-                result["chunk_id"]
-                for result in retrieved_at_10
-            ]
-
-            relevant_ranks = [
-                rank
-                for rank, chunk_id in enumerate(
-                    retrieved_chunks,
-                    start=1,
-                )
-                if chunk_id in relevant_chunks
-            ]
-
-            relevant_retrieved = (
-                set(retrieved_chunks) & relevant_chunks
-            )
-
-            recall_values.append(
-                len(relevant_retrieved) / len(relevant_chunks)
-            )
-            precision_values.append(
-                len(relevant_retrieved) / EVAL_TOP_K
-            )
-            mrr_values.append(
-                1.0 / relevant_ranks[0]
-                if relevant_ranks
-                else 0.0
-            )
-            hit_rate_values.append(
-                1.0 if relevant_ranks else 0.0
-            )
+        if retrieval_scores["recall_at_k"] is not None:
+            recall_values.append(retrieval_scores["recall_at_k"])
+            precision_values.append(retrieval_scores["precision_at_k"])
+            mrr_values.append(retrieval_scores["mrr"])
+            hit_rate_values.append(retrieval_scores["hit_rate_at_k"])
 
         # Record generation metrics from the pipeline result.
         if generation_result is not None:
@@ -345,6 +245,41 @@ def main() -> None:
             sir = sentence_integrity_rate(
                 generation_result["answer"]
             )
+
+            print("\n--- Question ---")
+            print(question)
+
+            print("\n--- Retrieved Context ---")
+            print(pipeline_result["context"])
+
+            print("\n--- Reference Answer ---")
+            print(query_item["answer"])
+            print("\n--- Generated Answer ---")
+            print(generation_result["answer"])
+            print("--- End Generated Answer ---\n")
+
+            judge_scores = evaluate_generation(
+                question=question,
+                answer=generation_result["answer"],
+                context=pipeline_result["context"],
+                reference_answer=query_item["answer"],
+                max_new_tokens=max_new_tokens,
+            )
+
+            if judge_scores["faithfulness"] is not None:
+                faithfulness_values.append(
+                    judge_scores["faithfulness"]
+                )
+
+            if judge_scores["answer_completeness"] is not None:
+                answer_completeness_values.append(
+                    judge_scores["answer_completeness"]
+                )
+
+            if judge_scores["hallucination_rate"] is not None:
+                hallucination_rate_values.append(
+                    judge_scores["hallucination_rate"]
+                )
             if sir is not None:
                 sir_values.append(sir)
 
@@ -387,6 +322,15 @@ def main() -> None:
             ),
         },
         "generation": {
+            "faithfulness": round_metric(
+                average(faithfulness_values)
+            ),
+            "answer_completeness": round_metric(
+                average(answer_completeness_values)
+            ),
+            "hallucination_rate": round_metric(
+                average(hallucination_rate_values)
+            ),
             "sentence_integrity_rate": round_metric(
                 average(sir_values)
             ),
@@ -445,21 +389,17 @@ def main() -> None:
         print(f"     Mean retrieval latency: {version_metrics['retrieval']['latency_s']} s")
         print(f"      Retrieval peak memory: {version_metrics['retrieval']['peak_memory_mb']} MB")
     elif evaluation_mode == "generation":
-        print(f"                    Queries: {len(queries)}")
-        print(f"  Mean sentence integrity: {version_metrics['generation']['sentence_integrity_rate']}")
-        print(f"  Mean fluency: {version_metrics['generation']['fluency_rate']}")
-        print(f"  Mean factuality: {version_metrics['generation']['factuality_rate']}")
-        print(f"  Mean coherence: {version_metrics['generation']['coherence_rate']}")
-        print(f"  Mean relevance: {version_metrics['generation']['relevance_rate']}")
-        print(f"  Mean informativeness: {version_metrics['generation']['informativeness_rate']}")
-        print(f"  Mean conciseness: {version_metrics['generation']['conciseness_rate']}")
-        print(f"  Mean creativity: {version_metrics['generation']['creativity_rate']}")
-        print(f"  Mean engagement: {version_metrics['generation']['engagement_rate']}")
-        print(f"  Mean emotional impact: {version_metrics['generation']['emotional_impact_rate']}")
-        print(f"     Mean generation latency: {version_metrics['generation']['latency_s']} s")
-        print(f"     Generation peak memory: {version_metrics['generation']['peak_memory_mb']} MB")
-        print(f"                 Git commit: {git_commit}")
-        print(f"                      Saved: {OUTPUT_PATH}")
+        print(f"                Queries: {len(queries)}")
+        print(f"           Faithfulness: {version_metrics['generation']['faithfulness']}")
+        print(f"    Answer completeness: {version_metrics['generation']['answer_completeness']}")
+        print(f"     Hallucination rate: {version_metrics['generation']['hallucination_rate']}")
+        print(f"     Sentence integrity: {version_metrics['generation']['sentence_integrity_rate']}")
+        print(f"     Generation latency: {version_metrics['generation']['latency_s']} s")
+        print(f"           Input tokens: {version_metrics['generation']['input_tokens_count']}")
+        print(f"          Output tokens: {version_metrics['generation']['output_tokens_count']}")
+        print(f" Peak generation memory: {version_metrics['generation']['peak_memory_mb']} MB")
+        print(f"             Git commit: {git_commit}")
+        print(f"                  Saved: {OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

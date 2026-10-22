@@ -21,11 +21,14 @@ This project benchmarks Retrieval-Augmented Generation (RAG) retrieval systems t
 ## Imp. Concepts
 
 - **BM25 Index** maintains
-  - Vocabulary: the unique words appearing in the chunks.
-  - Term frequencies: how often each word appears in each chunk.
-  - Document frequencies: how many chunks contain each word.
-  - Document lengths: the length of each chunk, used for length normalization.
-  - Chunk mapping: the association between each indexed document and its original chunk ID.
+  - Metadata of each chunk:  `chunk_id `, `source `, `chunk_size `, `text`
+  - Term frequencies in each chunk
+  - IDF (Inverse Document Frequency): Less often the word appears across docs, more unique info it carries
+  - Document lengths: total tokens in each chunk
+
+## Indexing results
+
+* 20,775 unique tokens extracted from whole corpus
 
 ## Experimental Scope
 
@@ -108,10 +111,10 @@ python -m src.ingestion.2extract_text
 python -m src.ingestion.3chunk_text
 ```
 
-### 4. Validate Chunks
+### 4. Build BM25 Index for the corpus once
 
-```code
-python src/ingestion/4validate_chunks.py
+```python
+python src/retrieval/_4bm25_index.py
 ```
 
 ### 5. BM25 retrieval

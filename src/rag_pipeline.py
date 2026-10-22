@@ -1,18 +1,10 @@
-
+# rag_pipeline.py
 import time
-
 import yaml
 
-from src.retrieval._4bm25_index import BM25Index
 from src.generation._6llm_inference import generate_answer
-
-with open("queries.yaml", "r", encoding="utf-8") as file:
-    queries = yaml.safe_load(file)["queries"]
-
-with open("configs.yaml", "r", encoding="utf-8") as file:
-    config = yaml.safe_load(file)
-
-
+from pathlib import Path
+from src.retrieval.__4bm25_index import load_index, search
 
 def run_pipeline(
     question: str,
@@ -21,11 +13,6 @@ def run_pipeline(
     memory_monitor_factory=None,
     run_generation: bool = True,
 ) -> dict:
-    if not question:
-        raise ValueError("Question cannot be empty.")
-
-    if index is None:
-        index = BM25Index.from_corpus()
 
     retrieval_memory_monitor = (
         memory_monitor_factory()
@@ -37,8 +24,12 @@ def run_pipeline(
         retrieval_memory_monitor.start()
 
     retrieval_start = time.perf_counter()
-    results = index.search(
-        question,
+    chunks, bm25 = index
+
+    results = search(
+        query=question,
+        chunks=chunks,
+        bm25=bm25,
         top_k=config["retrieval"]["top_k"],
     )
     retrieval_latency = time.perf_counter() - retrieval_start
@@ -62,6 +53,7 @@ def run_pipeline(
     if not run_generation:
         return {
             "results": results,
+            "context": context,
             "generation_result": None,
             "retrieval_latency_seconds": retrieval_latency,
             "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
@@ -91,6 +83,7 @@ def run_pipeline(
 
     return {
         "results": results,
+        "context": context,
         "generation_result": generation_result,
         "retrieval_latency_seconds": retrieval_latency,
         "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
@@ -100,17 +93,28 @@ def run_pipeline(
 
 
 def main():
-    question = queries[0]["query"]  # Use the first query for demonstration
+    root = Path(__file__).resolve().parents[1]
 
-    if not question:
-        print("Question cannot be empty.")
-        return
+    with (root / "queries.yaml").open(encoding="utf-8") as file:
+        queries = yaml.safe_load(file)["queries"]
 
-    pipeline_result = run_pipeline(question, config)
+    with (root / "configs.yaml").open(encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+
+    # Limit queries using evaluation.num_queries.
+    num_queries = int(config.get("evaluation", {}).get("num_queries", 0))
+
+    chunks, bm25 = load_index()
+    queries = queries[:num_queries]
+
+    pipeline_result = run_pipeline(
+        question=queries,
+        config=config,
+        index=(chunks, bm25),
+    )
 
     results = pipeline_result["results"]
     generation_result = pipeline_result["generation_result"]
-    retrieval_latency = pipeline_result["retrieval_latency_seconds"]
 
     print("\n--- Answer ---")
     print(generation_result["answer"])
@@ -124,12 +128,5 @@ def main():
             print(f"- {result['source']}")
 
     print("\n--- Latency ---")
-    print(f"Retrieval: {retrieval_latency:.4f} seconds")
-    print(
-        "Generation: "
-        f"{generation_result['generation_latency_seconds']:.3f} seconds"
-    )
-
-
-if __name__ == "__main__":
-    main()
+    print(f"Retrieval: {pipeline_result['retrieval_latency_seconds']:.4f} seconds")
+    print(f"Generation: {generation_result['generation_latency_seconds']:.3f} seconds")

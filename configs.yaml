@@ -16,10 +16,10 @@ retrieval:
 
 generation:
   model_name: qwen2.5-1.5b-instruct
-  max_new_tokens: 160
+  max_new_tokens: 96
 
 evaluation:
-  mode: both           # retrieval, generation, or both
-  num_queries: 0        # Set to 0 to evaluate all queries
-  commit_changes: true  # to test temporary code change
-  version_name: v2_chunk_level_ret_eval
+  mode: retrieval           # retrieval, generation, or both
+  num_queries: 1        # Set to 0 to evaluate all queries
+  commit_changes: false  # to test temporary code change
+  version_name: metrics_check

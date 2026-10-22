@@ -1,0 +1,138 @@
+# _4bm25_index.py
+#----------------------------------------------------
+# Run once per dataset
+# to build bm25 index for it
+import json
+import pickle
+from pathlib import Path
+import yaml
+from rank_bm25 import BM25Okapi
+
+from src.tokenization.tokenization import tokenize
+
+
+ROOT = Path(__file__).resolve().parents[2]
+INDEX_PATH = ROOT / "data" / "index" / "bm25_index.pkl"
+
+
+def load_chunks(path: Path) -> list[dict]:
+    chunks = []
+
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            if line.strip(): # Ignore empty lines
+                chunks.append(json.loads(line))
+
+    if not chunks:
+        raise ValueError(f"No chunks found in {path}")
+
+    return chunks
+
+
+def get_chunks_path() -> Path:
+    config_path = ROOT / "configs.yaml"
+
+    with config_path.open(encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+
+    corpus_name = config["corpus"]["name"]
+    return ROOT / "data" / "processed" / corpus_name / "chunks.jsonl"
+
+
+def build_index() -> None:
+    """Build and persist a BM25 index from processed chunks."""
+    chunks_path = get_chunks_path()
+    chunks = load_chunks(chunks_path)
+
+    tokenized_corpus = [
+        tokenize(chunk["text"])
+        for chunk in chunks
+    ]
+
+    bm25 = BM25Okapi(tokenized_corpus)
+
+    INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    with INDEX_PATH.open("wb") as file:
+        pickle.dump(
+            {
+                "chunks": chunks,
+                "bm25": bm25,
+            },
+            file,
+            protocol=pickle.HIGHEST_PROTOCOL,
+        )
+
+    print(f"Indexed {len(chunks)} chunks.")
+    print(f"BM25 index saved to: {INDEX_PATH}")
+
+
+def load_index() -> tuple[list[dict], BM25Okapi]:
+    """Load the persisted BM25 index."""
+    if not INDEX_PATH.exists():
+        raise FileNotFoundError(
+            f"BM25 index not found at {INDEX_PATH}. "
+            "Run _4bm25_index.py first."
+        )
+
+    with INDEX_PATH.open("rb") as file:
+        data = pickle.load(file)
+
+    return data["chunks"], data["bm25"]
+
+
+def search(
+    query: str,
+    chunks: list[dict],
+    bm25: BM25Okapi,
+    top_k: int = 10,
+) -> list[dict]:
+    """Retrieve the top-k chunks for a query."""
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1")
+
+    scores = bm25.get_scores(tokenize(query))
+    #--------------------------------------------------------
+    query_tokens = tokenize(query)
+
+    target_ids = {
+        "kubernetes_08038",
+        "kubernetes_08039",
+        "kubernetes_07992",
+    }
+
+    for index, chunk in enumerate(chunks):
+        if chunk["chunk_id"] in target_ids:
+            chunk_tokens = tokenize(chunk["text"])
+            matched_tokens = [
+                token for token in query_tokens
+                if token in chunk_tokens
+            ]
+
+            print(f"\nChunk: {chunk['chunk_id']}")
+            print(f"BM25 score: {scores[index]:.4f}")
+            print(f"Matched query tokens: {matched_tokens}")
+    #--------------------------------------------------------
+    ranked_indices = sorted(
+        range(len(scores)),
+        key=lambda index: scores[index],
+        reverse=True,
+    )[:top_k]
+
+    results = []
+
+    for rank, index in enumerate(ranked_indices, start=1):
+        chunk = chunks[index]
+
+        results.append({
+            "rank": rank,
+            "chunk_id": chunk["chunk_id"],
+            "source": chunk["source"],
+            "score": float(scores[index]),
+            "text": chunk["text"],
+        })
+
+    return results
+
+if __name__ == "__main__":
+    build_index()

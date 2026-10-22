@@ -21,17 +21,70 @@
       "peak_memory_mb": 6461.1953
     }
   },
-  "chunk_level_retrieval": {
+  "v2_chunk_level_ret_eval": {
     "git_commit": "",
     "retrieval": {
-      "recall_at_10": 0.4194,
+      "recall_at_10": 0.4083,
       "precision_at_10": 0.1,
-      "mrr": 0.4722,
+      "mrr": 0.525,
       "hit_rate_at_10": 0.6,
-      "latency_s": 0.4581,
-      "peak_memory_mb": 3244.1026
+      "latency_s": 1.788,
+      "peak_memory_mb": 5647.5844
     },
     "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 0.98,
+      "sentence_integrity_rate": 0.9172,
+      "latency_s": 139.9393,
+      "input_tokens_count": 1220.5,
+      "output_tokens_count": 143.1,
+      "peak_memory_mb": 6198.7617
+    },
+    "overall": {
+      "latency_s": 215.6182,
+      "peak_memory_mb": 6332.7188
+    }
+  },
+  "v2_test": {
+    "git_commit": "",
+    "retrieval": {
+      "recall_at_10": 0.0,
+      "precision_at_10": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_10": 0.0,
+      "latency_s": 0.1242,
+      "peak_memory_mb": 1879.6094
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity_rate": 0.8333,
+      "latency_s": 40.044,
+      "input_tokens_count": 1184,
+      "output_tokens_count": 96,
+      "peak_memory_mb": 6239.7227
+    },
+    "overall": {
+      "latency_s": 64.9196,
+      "peak_memory_mb": 6474.7852
+    }
+  },
+  "metrics_check": {
+    "git_commit": "",
+    "retrieval": {
+      "recall_at_10": 0.0,
+      "precision_at_10": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_10": 0.0,
+      "latency_s": 0.123,
+      "peak_memory_mb": 2161.7305
+    },
+    "generation": {
+      "faithfulness": null,
+      "answer_completeness": null,
+      "hallucination_rate": null,
       "sentence_integrity_rate": null,
       "latency_s": null,
       "input_tokens_count": null,
@@ -39,8 +92,8 @@
       "peak_memory_mb": null
     },
     "overall": {
-      "latency_s": 0.462,
-      "peak_memory_mb": 3244.6172
+      "latency_s": 0.126,
+      "peak_memory_mb": 2163.2422
     }
   }
 }
