@@ -11,15 +11,28 @@ chunking:
   chunk_overlap: 128
 
 retrieval:
-  default_retriever: bm25
-  top_k: 10
+  default_retriever: dense  # bm25, dense
+  top_k: 20
 
 generation:
   model_name: qwen2.5-1.5b-instruct
-  max_new_tokens: 96
+  max_new_tokens: 200
 
 evaluation:
-  mode: retrieval           # retrieval, generation, or both
-  num_queries: 1        # Set to 0 to evaluate all queries
-  commit_changes: false  # to test temporary code change
-  version_name: metrics_check
+  mode: both              # retrieval or both
+  num_queries: 0          # Set to 0 to evaluate all queries
+  version_name: dense_both_base        
+  commit_changes: true   # to test temporary code change
+
+  metrics:
+    retrieval:
+      - recall_at_k
+      - precision_at_k
+      - mrr
+      - hit_rate_at_k
+
+    generation:
+      - faithfulness
+      - answer_completeness
+      - hallucination_rate
+      - sentence_integrity

@@ -17,3 +17,5 @@ huggingface_hub
 scrapy
 # src/evaluation/evaluate.py
 psutil
+# data/embeddings
+sentence_transformers

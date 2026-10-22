@@ -4,7 +4,8 @@ import yaml
 
 from src.generation._6llm_inference import generate_answer
 from pathlib import Path
-from src.retrieval.__4bm25_index import load_index, search
+from src.retrieval.__4bm25_index import search as bm25_search, load_index
+from src.retrieval.dense_retrieval import search as dense_search
 
 def run_pipeline(
     question: str,
@@ -24,14 +25,30 @@ def run_pipeline(
         retrieval_memory_monitor.start()
 
     retrieval_start = time.perf_counter()
-    chunks, bm25 = index
+    retriever = config["retrieval"].get("default_retriever", "bm25").lower()
+    top_k = config["retrieval"]["top_k"]
 
-    results = search(
-        query=question,
-        chunks=chunks,
-        bm25=bm25,
-        top_k=config["retrieval"]["top_k"],
-    )
+    if retriever == "bm25":
+        chunks, bm25 = index
+        results = bm25_search(
+            query=question,
+            chunks=chunks,
+            bm25=bm25,
+            top_k=top_k,
+        )
+
+    elif retriever == "dense":
+        chunks, embeddings, model = index
+        results = dense_search(
+            query=question,
+            chunks=chunks,
+            embeddings=embeddings,
+            model=model,
+            top_k=top_k,
+        )
+
+    else:
+        raise ValueError(f"Unsupported retriever: {retriever}")
     retrieval_latency = time.perf_counter() - retrieval_start
 
     retrieval_peak_memory_mb = (
@@ -104,13 +121,30 @@ def main():
     # Limit queries using evaluation.num_queries.
     num_queries = int(config.get("evaluation", {}).get("num_queries", 0))
 
-    chunks, bm25 = load_index()
+    retriever = config["retrieval"].get("default_retriever", "bm25").lower()
+
+    if retriever == "bm25":
+        chunks, bm25 = load_index()
+        index = (chunks, bm25)
+
+    elif retriever == "dense":
+        from sentence_transformers import SentenceTransformer
+        from src.embeddings.embeddings import MODEL_NAME
+        from src.retrieval.dense_retrieval import load_dense_index
+
+        chunks, embeddings = load_dense_index()
+        model = SentenceTransformer(MODEL_NAME)
+        index = (chunks, embeddings, model)
+
+    else:
+        raise ValueError(f"Unsupported retriever: {retriever}")
+
     queries = queries[:num_queries]
 
     pipeline_result = run_pipeline(
-        question=queries,
+        question=queries[0]["query"],
         config=config,
-        index=(chunks, bm25),
+        index=index,
     )
 
     results = pipeline_result["results"]

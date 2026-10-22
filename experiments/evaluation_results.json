@@ -95,5 +95,182 @@
       "latency_s": 0.126,
       "peak_memory_mb": 2163.2422
     }
+  },
+  "baseline": {
+    "git_commit": "79374cd5887001d1d8a27cd17f6cd893d85a3338",
+    "retrieval": {
+      "recall_at_k": 0.4194,
+      "precision_at_k": 0.1,
+      "mrr": 0.4722,
+      "hit_rate_at_k": 0.6,
+      "latency_s": 0.1921,
+      "peak_memory_mb": 6054.9538
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 0.9333,
+      "sentence_integrity": 0.8697,
+      "latency_s": 30.4387,
+      "input_tokens_count": 1210.5,
+      "output_tokens_count": 90.77,
+      "peak_memory_mb": 6359.8648
+    },
+    "overall": {
+      "latency_s": 56.6194,
+      "peak_memory_mb": 6504.3711
+    }
+  },
+  "eval_check": {
+    "git_commit": "",
+    "retrieval": {
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_k": 0.0,
+      "latency_s": 0.1528,
+      "peak_memory_mb": 5224.4297
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity": 0.8333,
+      "latency_s": 25.454,
+      "input_tokens_count": 1184,
+      "output_tokens_count": 96,
+      "peak_memory_mb": 6354.3008
+    },
+    "overall": {
+      "latency_s": 43.119,
+      "peak_memory_mb": 6433.1055
+    }
+  },
+  "gen_check": {
+    "git_commit": "",
+    "retrieval": {
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_k": 0.0,
+      "latency_s": 0.13,
+      "peak_memory_mb": 1787.1094
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity": 0.875,
+      "latency_s": 49.84,
+      "input_tokens_count": 1184,
+      "output_tokens_count": 200,
+      "peak_memory_mb": 6115.6875
+    },
+    "overall": {
+      "latency_s": 74.232,
+      "peak_memory_mb": 6260.0742
+    }
+  },
+  "ret_Check": {
+    "git_commit": "79374cd5887001d1d8a27cd17f6cd893d85a3338",
+    "retrieval": {
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_k": 0.0,
+      "latency_s": 0.1474,
+      "peak_memory_mb": 798.0898
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity": 0.9286,
+      "latency_s": 114.312,
+      "input_tokens_count": 2241,
+      "output_tokens_count": 200,
+      "peak_memory_mb": 6071.9727
+    },
+    "overall": {
+      "latency_s": 148.3229,
+      "peak_memory_mb": 6460.9102
+    }
+  },
+  "ret_Check2": {
+    "git_commit": "79374cd5887001d1d8a27cd17f6cd893d85a3338",
+    "retrieval": {
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_k": 0.0,
+      "latency_s": 0.3223,
+      "peak_memory_mb": 802.44
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity": 0.9286,
+      "latency_s": 185.3199,
+      "ttft_s": 90.66,
+      "tpot_ms": 475.678,
+      "input_tokens_count": 2241,
+      "output_tokens_count": 200,
+      "peak_memory_mb": 6063.01
+    },
+    "overall": {
+      "latency_s": 237.9797,
+      "peak_memory_mb": 6425.45
+    }
+  },
+  "dense_ret": {
+    "git_commit": "",
+    "retrieval": {
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_k": 0.0,
+      "latency_s": 0.0253,
+      "peak_memory_mb": null
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0389,
+      "peak_memory_mb": 541.43
+    }
+  },
+  "dense_both": {
+    "git_commit": "",
+    "retrieval": {
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "mrr": 0.0,
+      "hit_rate_at_k": 0.0,
+      "latency_s": 0.0187,
+      "peak_memory_mb": 6586.02
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity": 1.0,
+      "latency_s": 431.527,
+      "ttft_s": 299.5644,
+      "tpot_ms": 835.207,
+      "input_tokens_count": 11766,
+      "output_tokens_count": 159,
+      "peak_memory_mb": 6586.02
+    },
+    "overall": {
+      "latency_s": 694.5814,
+      "peak_memory_mb": 7134.15
+    }
   }
 }
