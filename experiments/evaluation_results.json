@@ -272,5 +272,32 @@
       "latency_s": 694.5814,
       "peak_memory_mb": 7134.15
     }
+  },
+  "dense_both_base": {
+    "git_commit": "346da986ff805d393d817b5b9a7ff5f36e6abcb7",
+    "retrieval": {
+      "recall_at_k": 0.2417,
+      "precision_at_k": 0.03,
+      "mrr": 0.3006,
+      "hit_rate_at_k": 0.4333,
+      "latency_s": 0.0587,
+      "peak_memory_mb": 6726.2017
+    },
+    "generation": {
+      "faithfulness": 0.0,
+      "answer_completeness": 0.0,
+      "hallucination_rate": 1.0,
+      "sentence_integrity": 0.9498,
+      "latency_s": 62.4098,
+      "ttft_s": 27.8585,
+      "tpot_ms": 191.7815,
+      "input_tokens_count": 2330.17,
+      "output_tokens_count": 180.5,
+      "peak_memory_mb": 6726.2017
+    },
+    "overall": {
+      "latency_s": 102.1599,
+      "peak_memory_mb": 6993.39
+    }
   }
 }
