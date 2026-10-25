@@ -11,18 +11,21 @@ chunking:
   chunk_overlap: 128
 
 retrieval:
-  default_retriever: dense  # bm25, dense
+  retriever: bm25  # bm25, dense, hybrid
   top_k: 20
+  candidate_k: 100  # chunks to be extracted from both sparse & dense retieval for hybrid retrieval
+  rrf_k: 60
+  rerank: false   # true/false
 
 generation:
   model_name: qwen2.5-1.5b-instruct
   max_new_tokens: 200
 
 evaluation:
-  mode: both              # retrieval or both
+  mode: retrieval              # retrieval or both
   num_queries: 0          # Set to 0 to evaluate all queries
-  version_name: dense_both_base        
-  commit_changes: true   # to test temporary code change
+  version_name: sparse_ret_no_rerank        
+  commit_changes: false   # to test temporary code change: true/false
 
   metrics:
     retrieval:

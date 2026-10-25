@@ -1,13 +1,16 @@
-
+# src/evaluation/evaluate.py
 import json
 import subprocess
 import time
 from pathlib import Path
-
+from datetime import datetime, timezone
 import yaml
+import sys
+import webbrowser
+from sentence_transformers import SentenceTransformer
 
-from src.retrieval.__4bm25_index import load_index
 from src.rag_pipeline import run_pipeline
+
 from src.evaluation.evaluation_context import EvaluationContext
 from src.evaluation.runner import run_metrics
 from src.evaluation.utils import (
@@ -15,10 +18,12 @@ from src.evaluation.utils import (
     round_metric,
     PeakMemoryMonitor,
 )
-from sentence_transformers import SentenceTransformer
-from src.embeddings.embeddings import MODEL_NAME
-from src.embeddings.embeddings import EMBEDDINGS_PATH
-from src.retrieval.dense_retrieval import load_dense_index
+
+from src.embeddings.embeddings import MODEL_NAME, EMBEDDINGS_PATH
+
+from src.retrieval.sparse_retrieval_bm25 import load_index
+from src.retrieval.dense_retrieval_minilm import load_dense_index
+from src.retrieval.hybrid_retrieval_rrf import search as hybrid_search
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -225,6 +230,11 @@ def main() -> None:
     )
     version = evaluation_config.get("version_name", "baseline")
 
+    query_output_dir = ROOT / "experiments" / "query_outputs"
+    query_output_dir.mkdir(parents=True, exist_ok=True)
+
+    query_output_path = query_output_dir / f"{version}.jsonl"
+
     print("Starting evaluation...")
     print(f"Evaluation mode: {evaluation_config.get('mode', 'both')}")
     print(f"Queries selected: {len(queries)}")
@@ -271,7 +281,7 @@ def main() -> None:
 
     # ---------------------------------------------------------
     # 6. Load the selected retrieval index once
-    retriever = retrieval_config.get("default_retriever", "bm25").lower()
+    retriever = retrieval_config["retriever"].lower()
 
     if retriever == "bm25":
         chunks, bm25 = load_index()
@@ -282,10 +292,27 @@ def main() -> None:
         model = SentenceTransformer(MODEL_NAME)
         index = (chunks, embeddings, model)
 
+    elif retriever == "hybrid":
+        chunks, bm25 = load_index()
+        dense_chunks, embeddings = load_dense_index()
+
+        bm25_ids = [chunk["chunk_id"] for chunk in chunks]
+        dense_ids = [chunk["chunk_id"] for chunk in dense_chunks]
+
+        if bm25_ids != dense_ids:
+            raise ValueError(
+                "BM25 and dense indexes have different chunk ordering."
+            )
+
+        model = SentenceTransformer(MODEL_NAME)
+        index = (chunks, bm25, embeddings, model)
+
     else:
         raise ValueError(f"Unsupported retriever: {retriever}")
 
     print(f"Retriever: {retriever}")
+
+    query_output_path.write_text("", encoding="utf-8")
 
     overall_memory_monitor = PeakMemoryMonitor()
     overall_memory_monitor.start()
@@ -341,39 +368,6 @@ def main() -> None:
             # 8. Run configured retrieval metrics
             # -------------------------------------------------
             if retrieval_metric_names:
-                # ----------------------------------------------------------------------------
-                print("\n" + "=" * 60)
-                print("RETRIEVAL GROUND-TRUTH DIAGNOSTIC")
-                print("=" * 60)
-                print("Query ID:", query_id)
-                print("Question:", question)
-                print("Relevant chunk IDs:", query_item.get("relevant_chunks"))
-                print(
-                    "Retrieved chunk IDs:",
-                    [item.get("chunk_id", item.get("id")) for item in results[:configured_top_k]],
-                )
-                relevant_chunk_ids = set(
-                    query_item.get("relevant_chunks", [])
-                )
-
-                print("\nRelevant chunk ranks:")
-                relevant_ranks = {
-                    item.get("chunk_id", item.get("id")): rank
-                    for rank, item in enumerate(
-                        results[:configured_top_k],
-                        start=1,
-                    )
-                    if item.get("chunk_id", item.get("id"))
-                    in relevant_chunk_ids
-                }
-
-                for chunk_id in sorted(relevant_chunk_ids):
-                    if chunk_id in relevant_ranks:
-                        print(f"  {chunk_id}: rank {relevant_ranks[chunk_id]}")
-                    else:
-                        print(f"  {chunk_id}: rank not available")
-                print("=" * 60)
-                # ----------------------------------------------------------------------------
                 retrieval_context = EvaluationContext(
                     query_id=query_id,
                     question=question,
@@ -451,6 +445,59 @@ def main() -> None:
                 time.perf_counter() - overall_start
             )
 
+            # Save per-query results here
+            query_record = {
+                "query_id": query_id,
+                # "retriever": retriever,
+                # "rerank_enabled": retrieval_config.get("rerank", False),
+                # "configured_top_k": configured_top_k,
+                "retrieval_latency_seconds": round(
+                    retrieval_latency, 6
+                ),
+                "retrieval_peak_memory_mb": (
+                    pipeline_result["retrieval_peak_memory_mb"]
+                ),
+                "question": question,
+                "relevant_chunk_ids": query_item.get(
+                    "relevant_chunks", []
+                ),
+                "retrieved_chunk_ids": [
+                    item.get("chunk_id", item.get("id"))
+                    for item in results[:configured_top_k]
+                ],
+                "relevant_chunk_ranks": {
+                    chunk_id: rank
+                    for rank, item in enumerate(
+                        results[:configured_top_k], start=1
+                    )
+                    if (
+                        chunk_id := item.get(
+                            "chunk_id", item.get("id")
+                        )
+                    ) in set(query_item.get("relevant_chunks", []))
+                },
+                "retrieved_results": results[:configured_top_k],
+            }
+
+            if generation_result is not None:
+                query_record["generation"] = {
+                    "answer": generation_result.get("answer"),
+                    "latency_seconds": generation_result.get(
+                        "generation_latency_seconds"
+                    ),
+                }
+
+            with query_output_path.open(
+                "a", encoding="utf-8"
+            ) as output_file:
+                output_file.write(
+                    json.dumps(
+                        query_record,
+                        ensure_ascii=False,
+                        default=str,
+                    ) + "\n"
+                )
+
     finally:
         overall_peak_memory_mb = overall_memory_monitor.stop()
 
@@ -459,6 +506,7 @@ def main() -> None:
     # ---------------------------------------------------------
     version_metrics = {
         "git_commit": git_commit,
+        "query_count": len(queries),
         "retrieval": {
             **summarize_metrics(metric_values["retrieval"]),
             "latency_s": round_metric(
@@ -467,7 +515,7 @@ def main() -> None:
             "peak_memory_mb": round_metric(
                 average([
                     value
-                    for value in generation_peak_memory_values
+                    for value in retrieval_peak_memory_values
                     if value is not None
                 ])
             ),
@@ -521,17 +569,29 @@ def main() -> None:
     # 12. Print the evaluation summary
     # ---------------------------------------------------------
     print("\n========== Evaluation Summary ==========")
-    print(f"Queries evaluated: {len(queries)}")
-    print(f"Evaluation mode: {evaluation_config.get('mode', 'both')}")
-    print("Retrieval metrics:", version_metrics["retrieval"])
+    print(f"Queries evaluated : {len(queries)}")
+    print(f"Evaluation mode   : {evaluation_config.get('mode', 'both')}")
+    print("Retrieval metrics :", version_metrics["retrieval"])
     print("Generation metrics:", version_metrics["generation"])
-    print("Overall metrics:", version_metrics["overall"])
+    print("Overall metrics   :", version_metrics["overall"])
     if evaluation_config.get("commit_changes", False):
         print(f"Git commit: {git_commit}")
     else:
-        print("Git commit: skipped")
-    print(f"Results saved to: {OUTPUT_PATH}")
+        print("Git commit        : skipped")
+    print(f"\nResults saved to          : {OUTPUT_PATH}")
+    print(f"Per-query results saved to: {query_output_path}")
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/view_query_results.py",
+            "--input",
+            str(query_output_path),
+        ],
+        check=True,
+    )
 
+    html_report_path = query_output_path.with_suffix(".html")
+    webbrowser.open(html_report_path.resolve().as_uri())
 
 if __name__ == "__main__":
     main()

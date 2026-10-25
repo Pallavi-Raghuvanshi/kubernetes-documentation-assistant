@@ -50,6 +50,10 @@ Benchmarking RAG retrieval configurations across quality, latency, and memory.
 
 **Scope:** Focuses on retrieval benchmarking, not LLM answer generation.
 
+## To view per query evaluation
+
+[file:///C:/Users/palla/OneDrive/Desktop/S3%20Project/MLSE/rag_frontier/experiments/query_outputs/&lt;](file:///C:/Users/palla/OneDrive/Desktop/S3%20Project/MLSE/rag_frontier/experiments/query_outputs/a.html)filename>.[html](file:///C:/Users/palla/OneDrive/Desktop/S3%20Project/MLSE/rag_frontier/experiments/query_outputs/a.html)
+
 ## Project Structure
 
 ```

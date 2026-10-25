@@ -1,11 +1,15 @@
-# rag_pipeline.py
+# src/rag_pipeline.py
 import time
 import yaml
+from pathlib import Path
 
 from src.generation._6llm_inference import generate_answer
-from pathlib import Path
-from src.retrieval.__4bm25_index import search as bm25_search, load_index
-from src.retrieval.dense_retrieval import search as dense_search
+
+from src.retrieval.sparse_retrieval_bm25 import search as bm25_search, load_index
+from src.retrieval.dense_retrieval_minilm import search as dense_search
+from src.retrieval.hybrid_retrieval_rrf import search as hybrid_search
+
+from src.reranker.cross_encoder import CrossEncoderReranker
 
 def run_pipeline(
     question: str,
@@ -25,8 +29,14 @@ def run_pipeline(
         retrieval_memory_monitor.start()
 
     retrieval_start = time.perf_counter()
-    retriever = config["retrieval"].get("default_retriever", "bm25").lower()
+    retriever = config["retrieval"]["retriever"].lower()
     top_k = config["retrieval"]["top_k"]
+
+    rerank_enabled = config["retrieval"]["rerank"]
+    reranker = None
+
+    if rerank_enabled:
+        reranker = CrossEncoderReranker()
 
     if retriever == "bm25":
         chunks, bm25 = index
@@ -34,7 +44,11 @@ def run_pipeline(
             query=question,
             chunks=chunks,
             bm25=bm25,
-            top_k=top_k,
+            top_k=(
+                config["retrieval"].get("candidate_k", 100)
+                if rerank_enabled
+                else top_k
+            ),
         )
 
     elif retriever == "dense":
@@ -44,11 +58,44 @@ def run_pipeline(
             chunks=chunks,
             embeddings=embeddings,
             model=model,
-            top_k=top_k,
+            top_k=(
+                config["retrieval"].get("candidate_k", 100)
+                if rerank_enabled
+                else top_k
+            ),
+        )
+
+    elif retriever == "hybrid":
+        chunks, bm25, embeddings, model = index
+        results = hybrid_search(
+            query=question,
+            chunks=chunks,
+            bm25=bm25,
+            embeddings=embeddings,
+            model=model,
+            top_k=(
+                config["retrieval"].get("candidate_k", 100)
+                if rerank_enabled
+                else top_k
+            ),
+            candidate_k=config["retrieval"].get("candidate_k", 100),
+            rrf_k=config["retrieval"].get("rrf_k", 60),
         )
 
     else:
         raise ValueError(f"Unsupported retriever: {retriever}")
+
+    if reranker is not None:
+        results = reranker.rerank(
+            query=question,
+            candidates=results,
+            top_k=top_k,
+            text_key="text",
+        )
+
+        for rank, result in enumerate(results, start=1):
+            result["rank"] = rank
+            
     retrieval_latency = time.perf_counter() - retrieval_start
 
     retrieval_peak_memory_mb = (
@@ -121,7 +168,7 @@ def main():
     # Limit queries using evaluation.num_queries.
     num_queries = int(config.get("evaluation", {}).get("num_queries", 0))
 
-    retriever = config["retrieval"].get("default_retriever", "bm25").lower()
+    retriever = config["retrieval"].get("retriever", "bm25").lower()
 
     if retriever == "bm25":
         chunks, bm25 = load_index()
@@ -130,11 +177,29 @@ def main():
     elif retriever == "dense":
         from sentence_transformers import SentenceTransformer
         from src.embeddings.embeddings import MODEL_NAME
-        from src.retrieval.dense_retrieval import load_dense_index
+        from retrieval.dense_retrieval_minilm import load_dense_index
 
         chunks, embeddings = load_dense_index()
         model = SentenceTransformer(MODEL_NAME)
         index = (chunks, embeddings, model)
+
+    elif retriever == "hybrid":
+        from sentence_transformers import SentenceTransformer
+        from src.embeddings.embeddings import MODEL_NAME
+        from src.retrieval.dense_retrieval_minilm import load_dense_index
+
+        chunks, bm25 = load_index()
+        dense_chunks, embeddings = load_dense_index()
+
+        if [c["chunk_id"] for c in chunks] != [
+            c["chunk_id"] for c in dense_chunks
+        ]:
+            raise ValueError(
+                "BM25 and dense indexes contain different chunk ordering."
+            )
+
+        model = SentenceTransformer(MODEL_NAME)
+        index = (chunks, bm25, embeddings, model)
 
     else:
         raise ValueError(f"Unsupported retriever: {retriever}")

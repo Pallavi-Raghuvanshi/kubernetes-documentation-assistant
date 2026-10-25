@@ -1,3 +1,4 @@
+# src/evaluation/retrieval/hit_rate_at_k.py
 from src.evaluation.base import RetrievalMetric
 
 

@@ -92,42 +92,6 @@ def search(
         raise ValueError("top_k must be at least 1")
 
     scores = bm25.get_scores(tokenize(query))
-    #--------------------------------------------------------
-    # Diagnostic: rank of ground-truth relevant chunks
-    query_tokens = tokenize(query)
-
-    target_ids = {
-        "kubernetes_08038",
-        "kubernetes_08039",
-    }
-
-    # Rank every chunk by BM25 score, before top-k truncation.
-    all_ranked_indices = sorted(
-        range(len(scores)),
-        key=lambda index: scores[index],
-        reverse=True,
-    )
-
-    ranks = {
-        index: rank
-        for rank, index in enumerate(all_ranked_indices, start=1)
-    }
-
-    for index, chunk in enumerate(chunks):
-        if chunk["chunk_id"] in target_ids:
-            chunk_tokens = tokenize(chunk["text"])
-            matched_tokens = [
-                token for token in query_tokens
-                if token in chunk_tokens
-            ]
-
-            print(f"\nRelevant chunk: {chunk['chunk_id']}")
-            print(f"BM25 score: {scores[index]:.4f}")
-            print(f"BM25 rank: {ranks[index]} / {len(chunks)}")
-            print(f"Configured top_k: {top_k}")
-            print(f"Matched query tokens: {matched_tokens}")
-
-    #--------------------------------------------------------
     ranked_indices = sorted(
         range(len(scores)),
         key=lambda index: scores[index],

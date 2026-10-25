@@ -46,57 +46,7 @@
       "peak_memory_mb": 6332.7188
     }
   },
-  "v2_test": {
-    "git_commit": "",
-    "retrieval": {
-      "recall_at_10": 0.0,
-      "precision_at_10": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_10": 0.0,
-      "latency_s": 0.1242,
-      "peak_memory_mb": 1879.6094
-    },
-    "generation": {
-      "faithfulness": 0.0,
-      "answer_completeness": 0.0,
-      "hallucination_rate": 1.0,
-      "sentence_integrity_rate": 0.8333,
-      "latency_s": 40.044,
-      "input_tokens_count": 1184,
-      "output_tokens_count": 96,
-      "peak_memory_mb": 6239.7227
-    },
-    "overall": {
-      "latency_s": 64.9196,
-      "peak_memory_mb": 6474.7852
-    }
-  },
-  "metrics_check": {
-    "git_commit": "",
-    "retrieval": {
-      "recall_at_10": 0.0,
-      "precision_at_10": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_10": 0.0,
-      "latency_s": 0.123,
-      "peak_memory_mb": 2161.7305
-    },
-    "generation": {
-      "faithfulness": null,
-      "answer_completeness": null,
-      "hallucination_rate": null,
-      "sentence_integrity_rate": null,
-      "latency_s": null,
-      "input_tokens_count": null,
-      "output_tokens_count": null,
-      "peak_memory_mb": null
-    },
-    "overall": {
-      "latency_s": 0.126,
-      "peak_memory_mb": 2163.2422
-    }
-  },
-  "baseline": {
+  "sparse_both": {
     "git_commit": "79374cd5887001d1d8a27cd17f6cd893d85a3338",
     "retrieval": {
       "recall_at_k": 0.4194,
@@ -119,158 +69,6 @@
     "overall": {
       "latency_s": 56.6194,
       "peak_memory_mb": 6504.3711
-    }
-  },
-  "eval_check": {
-    "git_commit": "",
-    "retrieval": {
-      "recall_at_k": 0.0,
-      "precision_at_k": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_k": 0.0,
-      "latency_s": 0.1528,
-      "peak_memory_mb": 5224.4297
-    },
-    "generation": {
-      "faithfulness": 0.0,
-      "answer_completeness": 0.0,
-      "hallucination_rate": 1.0,
-      "sentence_integrity": 0.8333,
-      "latency_s": 25.454,
-      "input_tokens_count": 1184,
-      "output_tokens_count": 96,
-      "peak_memory_mb": 6354.3008
-    },
-    "overall": {
-      "latency_s": 43.119,
-      "peak_memory_mb": 6433.1055
-    }
-  },
-  "gen_check": {
-    "git_commit": "",
-    "retrieval": {
-      "recall_at_k": 0.0,
-      "precision_at_k": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_k": 0.0,
-      "latency_s": 0.13,
-      "peak_memory_mb": 1787.1094
-    },
-    "generation": {
-      "faithfulness": 0.0,
-      "answer_completeness": 0.0,
-      "hallucination_rate": 1.0,
-      "sentence_integrity": 0.875,
-      "latency_s": 49.84,
-      "input_tokens_count": 1184,
-      "output_tokens_count": 200,
-      "peak_memory_mb": 6115.6875
-    },
-    "overall": {
-      "latency_s": 74.232,
-      "peak_memory_mb": 6260.0742
-    }
-  },
-  "ret_Check": {
-    "git_commit": "79374cd5887001d1d8a27cd17f6cd893d85a3338",
-    "retrieval": {
-      "recall_at_k": 0.0,
-      "precision_at_k": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_k": 0.0,
-      "latency_s": 0.1474,
-      "peak_memory_mb": 798.0898
-    },
-    "generation": {
-      "faithfulness": 0.0,
-      "answer_completeness": 0.0,
-      "hallucination_rate": 1.0,
-      "sentence_integrity": 0.9286,
-      "latency_s": 114.312,
-      "input_tokens_count": 2241,
-      "output_tokens_count": 200,
-      "peak_memory_mb": 6071.9727
-    },
-    "overall": {
-      "latency_s": 148.3229,
-      "peak_memory_mb": 6460.9102
-    }
-  },
-  "ret_Check2": {
-    "git_commit": "79374cd5887001d1d8a27cd17f6cd893d85a3338",
-    "retrieval": {
-      "recall_at_k": 0.0,
-      "precision_at_k": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_k": 0.0,
-      "latency_s": 0.3223,
-      "peak_memory_mb": 802.44
-    },
-    "generation": {
-      "faithfulness": 0.0,
-      "answer_completeness": 0.0,
-      "hallucination_rate": 1.0,
-      "sentence_integrity": 0.9286,
-      "latency_s": 185.3199,
-      "ttft_s": 90.66,
-      "tpot_ms": 475.678,
-      "input_tokens_count": 2241,
-      "output_tokens_count": 200,
-      "peak_memory_mb": 6063.01
-    },
-    "overall": {
-      "latency_s": 237.9797,
-      "peak_memory_mb": 6425.45
-    }
-  },
-  "dense_ret": {
-    "git_commit": "",
-    "retrieval": {
-      "recall_at_k": 0.0,
-      "precision_at_k": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_k": 0.0,
-      "latency_s": 0.0253,
-      "peak_memory_mb": null
-    },
-    "generation": {
-      "latency_s": null,
-      "ttft_s": null,
-      "tpot_ms": null,
-      "input_tokens_count": null,
-      "output_tokens_count": null,
-      "peak_memory_mb": null
-    },
-    "overall": {
-      "latency_s": 0.0389,
-      "peak_memory_mb": 541.43
-    }
-  },
-  "dense_both": {
-    "git_commit": "",
-    "retrieval": {
-      "recall_at_k": 0.0,
-      "precision_at_k": 0.0,
-      "mrr": 0.0,
-      "hit_rate_at_k": 0.0,
-      "latency_s": 0.0187,
-      "peak_memory_mb": 6586.02
-    },
-    "generation": {
-      "faithfulness": 0.0,
-      "answer_completeness": 0.0,
-      "hallucination_rate": 1.0,
-      "sentence_integrity": 1.0,
-      "latency_s": 431.527,
-      "ttft_s": 299.5644,
-      "tpot_ms": 835.207,
-      "input_tokens_count": 11766,
-      "output_tokens_count": 159,
-      "peak_memory_mb": 6586.02
-    },
-    "overall": {
-      "latency_s": 694.5814,
-      "peak_memory_mb": 7134.15
     }
   },
   "dense_both_base": {
@@ -298,6 +96,150 @@
     "overall": {
       "latency_s": 102.1599,
       "peak_memory_mb": 6993.39
+    }
+  },
+  "sparse_ret_no_rerank": {
+    "git_commit": "c26128a83c8a6c5be2a784a605a7f117e182e881",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.4972,
+      "precision_at_k": 0.0583,
+      "mrr": 0.4743,
+      "hit_rate_at_k": 0.6333,
+      "latency_s": 0.1056,
+      "peak_memory_mb": 503.521
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.1076,
+      "peak_memory_mb": 503.57
+    }
+  },
+  "dense_ret_no_rerannk": {
+    "git_commit": "c26128a83c8a6c5be2a784a605a7f117e182e881",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.2417,
+      "precision_at_k": 0.03,
+      "mrr": 0.3006,
+      "hit_rate_at_k": 0.4333,
+      "latency_s": 0.0145,
+      "peak_memory_mb": 546.3757
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.017,
+      "peak_memory_mb": 548.44
+    }
+  },
+  "hybrid_ret_no_rerank": {
+    "git_commit": "c26128a83c8a6c5be2a784a605a7f117e182e881",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.4694,
+      "precision_at_k": 0.055,
+      "mrr": 0.4128,
+      "hit_rate_at_k": 0.6333,
+      "latency_s": 0.1205,
+      "peak_memory_mb": 695.02
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.1226,
+      "peak_memory_mb": 697.72
+    }
+  },
+  "sparse_ret_rerank": {
+    "git_commit": "c26128a83c8a6c5be2a784a605a7f117e182e881",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.4194,
+      "precision_at_k": 0.0483,
+      "mrr": 0.4452,
+      "hit_rate_at_k": 0.6333,
+      "latency_s": 4.7858,
+      "peak_memory_mb": 1803.527
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 4.79,
+      "peak_memory_mb": 2767.99
+    }
+  },
+  "dense_ret_rerank": {
+    "git_commit": "c26128a83c8a6c5be2a784a605a7f117e182e881",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.3861,
+      "precision_at_k": 0.045,
+      "mrr": 0.4439,
+      "hit_rate_at_k": 0.5667,
+      "latency_s": 9.3922,
+      "peak_memory_mb": 1810.5477
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 9.3988,
+      "peak_memory_mb": 2563.34
+    }
+  },
+  "hybrid_ret_rerank": {
+    "git_commit": "c26128a83c8a6c5be2a784a605a7f117e182e881",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.3861,
+      "precision_at_k": 0.045,
+      "mrr": 0.4364,
+      "hit_rate_at_k": 0.6,
+      "latency_s": 9.3433,
+      "peak_memory_mb": 1902.6843
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 9.3481,
+      "peak_memory_mb": 2715.59
     }
   }
 }
