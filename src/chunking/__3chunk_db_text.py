@@ -2,12 +2,13 @@
 import json
 import sqlite3
 from pathlib import Path
-
 import yaml
+
+from src.utils.helpers import load_config
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / "configs.yaml"
+
 
 CORPUS_NAME = "daiict_faculty_data"
 
@@ -28,11 +29,6 @@ OUTPUT_DIR = (
 )
 
 OUTPUT_PATH = OUTPUT_DIR / "chunks.jsonl"
-
-
-def load_config() -> dict:
-    with CONFIG_PATH.open(encoding="utf-8") as file:
-        return yaml.safe_load(file) or {}
 
 
 def chunk_text(

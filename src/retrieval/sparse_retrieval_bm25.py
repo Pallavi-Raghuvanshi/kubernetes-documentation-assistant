@@ -9,32 +9,15 @@ import yaml
 from rank_bm25 import BM25Okapi
 
 from src.tokenization.tokenization import tokenize
+from src.utils.helpers import load_config, load_chunks
 
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_PATH = ROOT / "data" / "index" / "bm25_index.pkl"
 
 
-def load_chunks(path: Path) -> list[dict]:
-    chunks = []
-
-    with path.open(encoding="utf-8") as file:
-        for line in file:
-            if line.strip(): # Ignore empty lines
-                chunks.append(json.loads(line))
-
-    if not chunks:
-        raise ValueError(f"No chunks found in {path}")
-
-    return chunks
-
-
 def get_chunks_path() -> Path:
-    config_path = ROOT / "configs.yaml"
-
-    with config_path.open(encoding="utf-8") as file:
-        config = yaml.safe_load(file)
-
+    config = load_config()
     corpus_name = config["corpus"]["name"]
     return ROOT / "data" / "processed" / corpus_name / "chunks.jsonl"
 

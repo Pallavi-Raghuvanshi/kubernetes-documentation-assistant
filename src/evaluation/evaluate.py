@@ -25,31 +25,11 @@ from src.retrieval.sparse_retrieval_bm25 import load_index
 from src.retrieval.dense_retrieval_minilm import load_dense_index
 from src.retrieval.hybrid_retrieval_rrf import search as hybrid_search
 
+from src.utils.helpers import load_config, get_queries
+
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / "configs.yaml"
-QUERIES_PATH = ROOT / "queries.yaml"
 OUTPUT_PATH = ROOT / "experiments" / "evaluation_results.json"
-
-
-def load_yaml(path: Path) -> dict:
-    """Load a YAML file."""
-    with path.open(encoding="utf-8") as file:
-        return yaml.safe_load(file) or {}
-
-
-def get_queries(config: dict) -> list[dict]:
-    """Load benchmark queries, preferring queries.yaml."""
-
-    if QUERIES_PATH.exists():
-        queries = load_yaml(QUERIES_PATH).get("queries", [])
-    else:
-        queries = config.get("queries", [])
-
-    if not queries:
-        raise ValueError("No benchmark queries found.")
-
-    return queries
 
 
 def get_selected_metrics(
@@ -178,7 +158,7 @@ def main() -> None:
     # ---------------------------------------------------------
     # 1. Load configuration and benchmark queries
     # ---------------------------------------------------------
-    config = load_yaml(CONFIG_PATH)
+    config = load_config()
     evaluation_config = config.get("evaluation", {})
 
     retrieval_metric_names = get_selected_metrics(
@@ -196,7 +176,7 @@ def main() -> None:
             "and evaluation.metrics in configs.yaml."
         )
 
-    queries = get_queries(config)
+    queries = get_queries()
     num_queries = int(evaluation_config.get("num_queries", 0))
 
     if num_queries < 0:

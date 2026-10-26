@@ -176,11 +176,10 @@ def main():
 
     elif retriever == "dense":
         from sentence_transformers import SentenceTransformer
-        from src.embeddings.embeddings import MODEL_NAME
         from retrieval.dense_retrieval_minilm import load_dense_index
 
         chunks, embeddings = load_dense_index()
-        model = SentenceTransformer(MODEL_NAME)
+        model = SentenceTransformer(config["retrieval"]["model"])
         index = (chunks, embeddings, model)
 
     elif retriever == "hybrid":

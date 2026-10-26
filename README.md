@@ -30,6 +30,10 @@ This project benchmarks Retrieval-Augmented Generation (RAG) retrieval systems t
 
 * 20,775 unique tokens extracted from whole corpus
 
+## References
+
+- https://medium.com/@pierre_guillou/nlp-how-to-add-a-domain-specific-vocabulary-new-tokens-to-a-subword-tokenizer-already-trained-33ab15613a41
+
 ## Experimental Scope
 
 Benchmarking RAG retrieval configurations across quality, latency, and memory.
@@ -53,6 +57,16 @@ Benchmarking RAG retrieval configurations across quality, latency, and memory.
 ## To view per query evaluation
 
 [file:///C:/Users/palla/OneDrive/Desktop/S3%20Project/MLSE/rag_frontier/experiments/query_outputs/&lt;](file:///C:/Users/palla/OneDrive/Desktop/S3%20Project/MLSE/rag_frontier/experiments/query_outputs/a.html)filename>.[html](file:///C:/Users/palla/OneDrive/Desktop/S3%20Project/MLSE/rag_frontier/experiments/query_outputs/a.html)
+
+## Embeddings
+
+**- ndarray**
+
+* shape=(27193, 384)
+* dtype=float32*
+* min: -0.2864
+* max: 0.2685
+* mean: -0.000464
 
 ## Project Structure
 

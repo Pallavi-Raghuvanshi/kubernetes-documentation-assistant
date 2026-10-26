@@ -12,6 +12,7 @@ chunking:
 
 retrieval:
   retriever: bm25  # bm25, dense, hybrid
+  model: sentence-transformers/all-MiniLM-L6-v2 # dense
   top_k: 20
   candidate_k: 100  # chunks to be extracted from both sparse & dense retieval for hybrid retrieval
   rrf_k: 60
