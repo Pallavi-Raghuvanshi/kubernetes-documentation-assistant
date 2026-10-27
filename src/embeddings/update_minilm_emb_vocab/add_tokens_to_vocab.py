@@ -17,93 +17,6 @@ MODEL_NAME = config["retrieval"]["model"]
 TOP_FREQUENCY = 150
 TOP_FRAGMENTATION = 50
 
-
-def is_valid_keyword(keyword: str) -> bool:
-    """Reject empty keywords and obvious encoded or markup artifacts."""
-    keyword = keyword.strip()
-
-    if not keyword:
-        return False
-
-    # # Reject long Base64-like strings.
-    # if len(keyword) >= 80 and re.fullmatch(
-    #     r"[A-Za-z0-9_+/=-]+", keyword
-    # ):
-    #     return False
-
-    # Reject HTML tags and Mermaid diagram syntax.
-    if re.search(r"<[^>]+>", keyword):
-        return False
-
-    if re.search(
-        r"\b(graph\s+(LR|RL|TB|TD|BT)|flowchart\s+(LR|RL|TB|TD|BT))\b",
-        keyword,
-        re.IGNORECASE,
-    ):
-        return False
-
-    # Reject tokens containing letters and digits with at least 3 digit groups separated by non-digit characters.
-    digit_groups = re.findall(r"\d+", keyword)
-    
-    if (
-        len(digit_groups) >= 3
-        and re.search(r"[A-Za-z]", keyword)
-        and re.search(r"\D", keyword)
-    ):
-        return False
-
-    # Reject UUIDs.
-    if re.fullmatch(
-        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{12}",
-        keyword,
-    ):
-        return False
-
-    # Reject long hexadecimal hashes.
-    if re.fullmatch(r"[0-9a-fA-F]{32,}", keyword):
-        return False
-
-    # Reject Base64/JWT-like encoded strings.
-    if (
-        len(keyword) >= 16
-        and re.fullmatch(r"[A-Za-z0-9_+/=-]+", keyword)
-        and (
-            re.search(r"[+/=]", keyword)
-            or (
-                re.search(r"[a-z]", keyword)
-                and re.search(r"[A-Z]", keyword)
-                and re.search(r"\d", keyword)
-            )
-        )
-    ):
-        return False
-
-    # Reject runtime-generated Kubernetes resource names.
-    if re.fullmatch(
-        r"(?:nginx-deployment|my-nginx|hello-world|snowflake|"
-        r"wordpress-mysql|redis-follower|dra-example-driver-kubeletplugin|"
-        r"fluentd-cloud-logging-kubernetes-node|kube-proxy-kubernetes-node)"
-        r"-[a-z0-9]+(?:-[a-z0-9]+)+",
-        keyword,
-        re.IGNORECASE,
-    ):
-        return False
-
-    # Reject generated pod/job names with numeric identifiers and suffixes.
-    if re.fullmatch(
-        r"(?:job-backoff-limit-per-index-failindex|"
-        r"job-pod-failure-policy-failjob|"
-        r"job-pod-failure-policy-config)-[a-z0-9-]+",
-        keyword,
-        re.IGNORECASE,
-    ):
-        return False
-
-    return True
-
-
 def main():
     with INPUT_PATH.open("r", encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
@@ -112,12 +25,6 @@ def main():
     for row in records:
         row["occurrences"] = int(row["occurrences"])
         row["subword_count"] = int(row["subword_count"])
-    # Filter valid tokens
-    records = [
-        row for row in records
-        if is_valid_keyword(row.get("keyword", ""))
-    ]
-    print(f"Valid keyword records: {len(records)}")
 
     # Select top 150 by frequency.
     top_frequency = sorted(
@@ -185,17 +92,6 @@ def main():
     # Final validation check
     if len(added_tokens) != len(set(added_tokens)):
         raise ValueError("Duplicate added tokens detected.")
-
-    invalid_tokens = [
-        token for token in added_tokens
-        if not is_valid_keyword(token)
-    ]
-
-    if invalid_tokens:
-        raise ValueError(
-            "Invalid tokens found in the added vocabulary: "
-            f"{invalid_tokens}"
-        )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     tokenizer.save_pretrained(OUTPUT_DIR)

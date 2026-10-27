@@ -13,7 +13,7 @@ def search(
     top_k: int = 10,
     candidate_k: int = 100,
     rrf_k: int = 60,
-) -> list[dict]:
+) -> tuple[list[dict], list[str]]:
     """Fuse BM25 and dense rankings using Reciprocal Rank Fusion."""
 
     if not query.strip():
@@ -30,20 +30,22 @@ def search(
 
     candidate_k = min(candidate_k, len(chunks))
 
-    bm25_results = bm25_search(
+    bm25_results, query_tokens = bm25_search(
         query=query,
         chunks=chunks,
         bm25=bm25,
         top_k=candidate_k,
     )
 
-    dense_results = dense_search(
+    dense_results, dense_query_tokens = dense_search(
         query=query,
         chunks=chunks,
         embeddings=embeddings,
         model=model,
         top_k=candidate_k,
     )
+
+    query_tokens = dense_query_tokens
 
     # Reciprocal Rank Fusion: combine rankings, not raw scores.
     fused = {}
@@ -73,4 +75,4 @@ def search(
     for rank, result in enumerate(ranked_results, start=1):
         result["rank"] = rank
 
-    return ranked_results
+    return ranked_results, query_tokens

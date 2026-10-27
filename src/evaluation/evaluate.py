@@ -8,18 +8,13 @@ import yaml
 import sys
 import webbrowser
 from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer
 
 from src.rag_pipeline import run_pipeline
 
 from src.evaluation.evaluation_context import EvaluationContext
 from src.evaluation.runner import run_metrics
-from src.evaluation.utils import (
-    average,
-    round_metric,
-    PeakMemoryMonitor,
-)
-
-from embeddings.new_minilm_vocab_embeddings import MODEL_NAME, EMBEDDINGS_PATH
+from src.evaluation.utils import average, round_metric, PeakMemoryMonitor
 
 from src.retrieval.sparse_retrieval_bm25 import load_index
 from src.retrieval.dense_retrieval_minilm import load_dense_index
@@ -38,11 +33,7 @@ def get_selected_metrics(
 ) -> list[str]:
     """Return configured metrics for retrieval-only or combined evaluation."""
 
-    mode = evaluation_config.get("mode", "both")
-
-    if not isinstance(mode, str):
-        raise ValueError("evaluation.mode must be a string.")
-
+    mode = evaluation_config["mode"]
     mode = mode.lower()
 
     if mode not in {"retrieval", "both"}:
@@ -159,25 +150,13 @@ def main() -> None:
     # 1. Load configuration and benchmark queries
     # ---------------------------------------------------------
     config = load_config()
-    evaluation_config = config.get("evaluation", {})
+    evaluation_config = config["evaluation"]
 
-    retrieval_metric_names = get_selected_metrics(
-        evaluation_config,
-        "retrieval",
-    )
-    generation_metric_names = get_selected_metrics(
-        evaluation_config,
-        "generation",
-    )
-
-    if not retrieval_metric_names and not generation_metric_names:
-        raise ValueError(
-            "No evaluation metrics selected. Check evaluation.mode "
-            "and evaluation.metrics in configs.yaml."
-        )
+    retrieval_metric_names = get_selected_metrics(evaluation_config, "retrieval")
+    generation_metric_names = get_selected_metrics(evaluation_config, "generation")
 
     queries = get_queries()
-    num_queries = int(evaluation_config.get("num_queries", 0))
+    num_queries = int(evaluation_config["num_queries"])
 
     if num_queries < 0:
         raise ValueError("evaluation.num_queries cannot be negative.")
@@ -262,6 +241,7 @@ def main() -> None:
     # ---------------------------------------------------------
     # 6. Load the selected retrieval index once
     retriever = retrieval_config["retriever"].lower()
+    MODEL_NAME = config["retrieval"]["model"]
 
     if retriever == "bm25":
         chunks, bm25 = load_index()
@@ -330,6 +310,7 @@ def main() -> None:
             results = pipeline_result["results"]
             retrieved_context = pipeline_result["context"]
             generation_result = pipeline_result["generation_result"]
+            query_tokens = pipeline_result["query_tokens"]
 
             retrieval_latency = pipeline_result[
                 "retrieval_latency_seconds"
@@ -428,19 +409,11 @@ def main() -> None:
             # Save per-query results here
             query_record = {
                 "query_id": query_id,
-                # "retriever": retriever,
-                # "rerank_enabled": retrieval_config.get("rerank", False),
-                # "configured_top_k": configured_top_k,
-                "retrieval_latency_seconds": round(
-                    retrieval_latency, 6
-                ),
-                "retrieval_peak_memory_mb": (
-                    pipeline_result["retrieval_peak_memory_mb"]
-                ),
-                "question": question,
-                "relevant_chunk_ids": query_item.get(
-                    "relevant_chunks", []
-                ),
+                "retrieval_latency_seconds": round(retrieval_latency, 6),
+                "retrieval_peak_memory_mb": pipeline_result["retrieval_peak_memory_mb"],
+                "query": question,
+                "query_tokens": query_tokens,
+                "relevant_chunk_ids": query_item.get("relevant_chunks", []),
                 "retrieved_chunk_ids": [
                     item.get("chunk_id", item.get("id"))
                     for item in results[:configured_top_k]
@@ -456,7 +429,7 @@ def main() -> None:
                         )
                     ) in set(query_item.get("relevant_chunks", []))
                 },
-                "retrieved_results": results[:configured_top_k],
+                "retrieved_results": results[:configured_top_k]
             }
 
             if generation_result is not None:

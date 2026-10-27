@@ -69,12 +69,14 @@ def search(
     chunks: list[dict],
     bm25: BM25Okapi,
     top_k: int = 10,
-) -> list[dict]:
-    """Retrieve the top-k chunks for a query."""
+) -> tuple[list[dict], list[str]]:
+    """Retrieve the top-k chunks and return query tokens."""
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
 
-    scores = bm25.get_scores(tokenize(query))
+    query_tokens = tokenize(query)
+    scores = bm25.get_scores(query_tokens)
+
     ranked_indices = sorted(
         range(len(scores)),
         key=lambda index: scores[index],
@@ -94,7 +96,7 @@ def search(
             "text": chunk["text"],
         })
 
-    return results
+    return results, query_tokens
 
 if __name__ == "__main__":
     build_index()

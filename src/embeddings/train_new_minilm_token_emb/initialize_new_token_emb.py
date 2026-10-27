@@ -25,25 +25,40 @@ def main() -> None:
     print(f"Loading expanded tokenizer: {TOKENIZER_PATH}")
     expanded_tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH)
 
-    original_vocab = original_tokenizer.get_vocab()
     expanded_vocab = expanded_tokenizer.get_vocab()
 
     # 2. Identify tokens that were not in the original vocabulary.
+    original_vocab_size = len(original_tokenizer)
+
     new_tokens = [
         token
         for token, token_id in expanded_vocab.items()
-        if token not in original_vocab
+        if token_id >= original_vocab_size
     ]
 
     print(f"Original vocabulary size: {len(original_tokenizer)}")
     print(f"Expanded vocabulary size: {len(expanded_tokenizer)}")
     print(f"New tokens identified: {len(new_tokens)}")
 
-    if len(new_tokens) != 200:
+    if not new_tokens:
         raise ValueError(
-            f"Expected 200 new tokens, but found {len(new_tokens)}. "
-            "Check the expanded tokenizer before proceeding."
+            "No new tokens found. Check the expanded tokenizer."
         )
+
+    if len(new_tokens) != len(set(new_tokens)):
+        raise ValueError("Duplicate new tokens detected.")
+
+    # Validate token IDs before resizing the model
+    new_token_ids = [expanded_vocab[token] for token in new_tokens]
+
+    if len(new_token_ids) != len(set(new_token_ids)):
+        raise ValueError("Multiple new tokens share the same token ID.")
+
+    if any(token_id < original_vocab_size for token_id in new_token_ids):
+        raise ValueError("A new token has an ID inside the original vocabulary.")
+
+    if any(token_id >= len(expanded_tokenizer) for token_id in new_token_ids):
+        raise ValueError("A new token ID is outside the expanded vocabulary.")
 
     # 3. Load the original pretrained SentenceTransformer model.
     print(f"Loading pretrained model: {model_name}")
@@ -56,6 +71,13 @@ def main() -> None:
     transformer_model.resize_token_embeddings(len(expanded_tokenizer))
 
     embedding_layer = transformer_model.get_input_embeddings()
+
+    if embedding_layer.num_embeddings != len(expanded_tokenizer):
+        raise ValueError(
+            "Embedding matrix size does not match tokenizer vocabulary: "
+            f"{embedding_layer.num_embeddings} != {len(expanded_tokenizer)}"
+        )
+
     embedding_weights = embedding_layer.weight
 
     # 5. Initialize each new token using its original subword embeddings.
@@ -64,6 +86,18 @@ def main() -> None:
 
     with torch.no_grad():
         for token in new_tokens:
+            # Reject obvious scraping artifacts.
+            if (
+                len(token) >= 80
+                and all(c.isalnum() or c in "_+/=-" for c in token)
+            ):
+                uninitialized_tokens.append(token)
+                continue
+
+            if "<" in token or ">" in token:
+                uninitialized_tokens.append(token)
+                continue
+
             # Tokenize the term using the ORIGINAL tokenizer.
             subword_ids = original_tokenizer.encode(
                 token,
@@ -107,7 +141,18 @@ def main() -> None:
                 }
             )
 
-    # 6. Save the initialized model and its tokenizer separately.
+    # 6. Stop before saving if any token failed initialization.
+    if uninitialized_tokens:
+        print("\nTokens not initialized:")
+        for token in uninitialized_tokens:
+            print(f"  - {token}")
+
+        raise ValueError(
+            f"{len(uninitialized_tokens)} tokens could not be initialized. "
+            "Clean the vocabulary and rerun initialization."
+        )
+
+    # Save only after every new token has been initialized.
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     model.save(str(OUTPUT_DIR))
 
@@ -148,19 +193,11 @@ def main() -> None:
     print(f"Initialized tokens: {len(initialized_tokens)}")
     print(f"Tokens needing attention: {len(uninitialized_tokens)}")
     print(f"Model embedding rows: {embedding_layer.num_embeddings}")
+    print(f"Tokenizer vocabulary size: {len(expanded_tokenizer)}")
+
+    assert (embedding_layer.num_embeddings == len(expanded_tokenizer)), "Model and tokenizer vocabulary sizes do not match."
     print(f"Model saved to: {OUTPUT_DIR}")
     print(f"Metadata saved to: {metadata_path}")
-
-    if uninitialized_tokens:
-        print("\nTokens not initialized from known subwords:")
-        for token in uninitialized_tokens:
-            print(f"  - {token}")
-
-        print(
-            "\nThese tokens retain their default initialized embeddings. "
-            "Inspect them before training."
-        )
-
 
 if __name__ == "__main__":
     main()

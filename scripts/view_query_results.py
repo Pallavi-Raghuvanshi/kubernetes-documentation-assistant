@@ -39,7 +39,7 @@ def normalize_ids(values: Any) -> set[str]:
     elif isinstance(values, (str, int)):
         values = [values]
     try:
-        return {str(value) for value in values if value is not None}
+        return {str(value) for value in values  if value is not None}
     except TypeError:
         return {str(values)}
 
@@ -92,11 +92,13 @@ def get_retrieval_metrics(relevant_ids: set[str], retrieved: list) -> dict:
 def render_query(record: dict, index: int) -> str:
     query_id = first(record, "query_id", "id", "qid", default=f"Query {index + 1}")
     question = first(record, "question", "query", "user_query", default="Not available")
+    query_tokens = first(record, "query_tokens", "query tokens", default=[])
     generation = first(record, "generation", default={}) or {}
     if not isinstance(generation, dict):
         generation = {}
     answer = first(
-        record, "answer", "generated_answer", "response",
+        record, 
+        "answer", "generated_answer", "response",
         default=generation.get("answer"),
     )
 
@@ -160,11 +162,14 @@ def render_query(record: dict, index: int) -> str:
 
         chunk_id = chunk_id_of(chunk) or "Unknown"
         score = first(chunk, "score", "similarity_score", "relevance_score")
+        if isinstance(score, (int, float)):
+            score = f"{score:.4f}"
+
         content = first(
             chunk, "text", "content", "page_content", "chunk_text",
             default="No chunk text stored in this record.",
         )
-        metadata = first(chunk, "metadata", default={})
+        chunk_tokens = first(chunk, "chunk_tokens", default=[])
 
         # Derive the relevance label from annotated ground truth, not from score
         # or optional flags that may not exist in the stored result.
@@ -185,8 +190,8 @@ def render_query(record: dict, index: int) -> str:
           <div class="chunk-body">
             <h4>Chunk text</h4>
             <pre>{esc(content)}</pre>
-            <h4>Metadata</h4>
-            <pre>{esc(metadata)}</pre>
+            <h4>Chunk Tokens</h4>
+            <pre>{esc(chunk_tokens)}</pre>
           </div>
         </details>
         """
@@ -208,6 +213,9 @@ def render_query(record: dict, index: int) -> str:
       <div class="query-body">
         <h3>Question</h3>
         <p class="question">{esc(question)}</p>
+
+        <h3>Query Tokens ({len(query_tokens)})</h3>
+        <pre>{esc(query_tokens)}</pre>
 
         <h3>Ground-truth relevant chunks ({len(relevant_ids)})</h3>
         <div class="ground-truth">{ground_truth_html}</div>
@@ -298,8 +306,32 @@ def main() -> None:
   .metric {{ background: #172338; border: 1px solid #2b3a52; padding: 11px 14px; border-radius: 8px; min-width: 115px; }}
   .metric-name {{ display: block; color: #94a3b8; font-size: 12px; margin-bottom: 5px; }}
   .metric strong {{ color: #f8fafc; font-size: 16px; }}
-  .ground-truth {{ display: grid; gap: 7px; }}
-  .gt-row {{ display: flex; justify-content: space-between; gap: 12px; align-items: center; background: #0f1a2b; border: 1px solid #273449; padding: 9px 12px; border-radius: 7px; }}
+  .ground-truth {{ display: flex; flex-wrap: wrap; gap: 10px; }}
+
+  .gt-row {{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    background: #0f1a2b;
+    border: 1px solid #273449;
+    padding: 12px;
+    border-radius: 8px;
+    min-width: 140px;
+    max-width: 240px;
+    overflow-wrap: anywhere;
+  }}
+
+  .gt-row code {{font-size: 13px;}}
+
+  .gt-rank {{
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }}
+  
   code {{ color: #bfdbfe; overflow-wrap: anywhere; }}
   .gt-rank {{ font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px; white-space: nowrap; }}
   .found {{ color: #86efac; background: #123524; }}

@@ -40,7 +40,7 @@ def run_pipeline(
 
     if retriever == "bm25":
         chunks, bm25 = index
-        results = bm25_search(
+        results, query_tokens = bm25_search(
             query=question,
             chunks=chunks,
             bm25=bm25,
@@ -53,13 +53,13 @@ def run_pipeline(
 
     elif retriever == "dense":
         chunks, embeddings, model = index
-        results = dense_search(
+        results, query_tokens = dense_search(
             query=question,
             chunks=chunks,
             embeddings=embeddings,
             model=model,
             top_k=(
-                config["retrieval"].get("candidate_k", 100)
+                config["retrieval"]["candidate_k"]
                 if rerank_enabled
                 else top_k
             ),
@@ -67,7 +67,7 @@ def run_pipeline(
 
     elif retriever == "hybrid":
         chunks, bm25, embeddings, model = index
-        results = hybrid_search(
+        results, query_tokens = hybrid_search(
             query=question,
             chunks=chunks,
             bm25=bm25,
@@ -122,6 +122,7 @@ def run_pipeline(
             "retrieval_latency_seconds": retrieval_latency,
             "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
             "generation_peak_memory_mb": None,
+            "query_tokens": query_tokens,
         }
 
     generation_memory_monitor = (
@@ -152,6 +153,7 @@ def run_pipeline(
         "retrieval_latency_seconds": retrieval_latency,
         "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
         "generation_peak_memory_mb": generation_peak_memory_mb,
+        "query_tokens": query_tokens,
     }
 
 
@@ -169,6 +171,7 @@ def main():
     num_queries = int(config.get("evaluation", {}).get("num_queries", 0))
 
     retriever = config["retrieval"].get("retriever", "bm25").lower()
+    query_tokens = []
 
     if retriever == "bm25":
         chunks, bm25 = load_index()
@@ -176,7 +179,7 @@ def main():
 
     elif retriever == "dense":
         from sentence_transformers import SentenceTransformer
-        from retrieval.dense_retrieval_minilm import load_dense_index
+        from src.retrieval.dense_retrieval_minilm import load_dense_index
 
         chunks, embeddings = load_dense_index()
         model = SentenceTransformer(config["retrieval"]["model"])
@@ -184,7 +187,7 @@ def main():
 
     elif retriever == "hybrid":
         from sentence_transformers import SentenceTransformer
-        from embeddings.new_minilm_vocab_embeddings import MODEL_NAME
+        from embeddings.new_minilm_vocab_emb import MODEL_NAME
         from src.retrieval.dense_retrieval_minilm import load_dense_index
 
         chunks, bm25 = load_index()
