@@ -1,4 +1,4 @@
-# src/retrieval/dense_retrieval.py
+# src/retrieval/dense_retrieval_minilm.py
 from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -6,25 +6,24 @@ from sentence_transformers import SentenceTransformer
 from src.utils.helpers import load_config, load_chunks
 
 ROOT = Path(__file__).resolve().parents[2]
-EMBEDDINGS_PATH = ROOT / "data" / "embeddings" / "kubernetes_minilm_embeddings.npy"
+EMBEDDINGS_PATH = ROOT / "data" / "embeddings" / "kubernetes_minilm_initialized_embeddings.npy"
 
-
-def load_embeddings() -> np.ndarray:
-    if not EMBEDDINGS_PATH.exists():
+def load_embeddings(path: Path = EMBEDDINGS_PATH) -> np.ndarray:
+    if not path.exists():
         raise FileNotFoundError(
-            f"Embeddings not found at {EMBEDDINGS_PATH}. "
-            "Run src.embeddings.embeddings first."
+            f"Generate initialized-model embeddings first using "
+            f"src.embeddings.new_minilm_vocab_embeddings."
         )
-    return np.load(EMBEDDINGS_PATH)
+    return np.load(path)
 
-def load_dense_index():
-    return load_chunks(), load_embeddings()
+def load_dense_index(embeddings_path: Path = EMBEDDINGS_PATH):
+    return load_chunks(), load_embeddings(embeddings_path)
 
 def search(
     query: str,
     chunks: list[dict],
     embeddings: np.ndarray,
-    model: str,
+    model: SentenceTransformer,
     top_k: int,
 ) -> list[dict]:
     
@@ -34,12 +33,18 @@ def search(
     if top_k < 1:
         raise ValueError("top_k must be at least 1.")
     
-    model_org = model.split('/')[0]
-    query_embedding = model_org.encode(
+    query_embedding = model.encode(
         query,
         convert_to_numpy=True,
         normalize_embeddings=True,
     )
+
+    if embeddings.shape[1] != query_embedding.shape[0]:
+        raise ValueError(
+            f"Embedding dimension mismatch: document embeddings have "
+            f"{embeddings.shape[1]} dimensions, but query embedding has "
+            f"{query_embedding.shape[0]}. Ensure both use the same model."
+        )
 
     # Embeddings are normalized, so dot product gives cosine similarity.
     scores = embeddings @ query_embedding
@@ -67,7 +72,7 @@ def main():
     print(f"Loaded {len(chunks)} chunks.")
     print(f"Embedding shape: {embeddings.shape}")
 
-    model = config["retrieval"]["model"]
+    model = SentenceTransformer(config["retrieval"]["model"])
     query = input("\nEnter a search query: ").strip()
     results = search(query, chunks, embeddings, model, config["retrieval"]["top_k"])
 

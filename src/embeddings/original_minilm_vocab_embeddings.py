@@ -1,4 +1,4 @@
-# src\embeddings\embeddings.py
+# src\embeddings\original_minilm_vocab_embeddings.py
 import json
 from pathlib import Path
 
@@ -11,7 +11,7 @@ from src.utils.helpers import load_config, load_chunks
 
 ROOT = Path(__file__).resolve().parents[2]
 EMBEDDINGS_DIR = ROOT / "data" / "embeddings"
-EMBEDDINGS_PATH = EMBEDDINGS_DIR / "kubernetes_minilm_updated_embeddings.npy"
+EMBEDDINGS_PATH = EMBEDDINGS_DIR / "kubernetes_minilm_embeddings.npy"
 
 def build_embeddings() -> None:
     EMBEDDINGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -19,13 +19,9 @@ def build_embeddings() -> None:
     chunks = load_chunks()
     texts = [chunk["text"] for chunk in chunks]
     MODEL_NAME = config["retrieval"]["model"]
-    TOKENIZER_PATH = ROOT / "models" / "kubernetes_tokenizer_updated_vocab"
 
     print(f"Loading model: {MODEL_NAME}")
     model = SentenceTransformer(MODEL_NAME)
-
-    print(f"Loading expanded tokenizer: {TOKENIZER_PATH}")
-    model.tokenizer = model.tokenizer.from_pretrained(TOKENIZER_PATH)
 
     print(f"Generating embeddings for {len(texts)} chunks...")
     embeddings = model.encode(

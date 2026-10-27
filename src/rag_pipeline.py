@@ -184,7 +184,7 @@ def main():
 
     elif retriever == "hybrid":
         from sentence_transformers import SentenceTransformer
-        from src.embeddings.embeddings import MODEL_NAME
+        from embeddings.new_minilm_vocab_embeddings import MODEL_NAME
         from src.retrieval.dense_retrieval_minilm import load_dense_index
 
         chunks, bm25 = load_index()

@@ -12,7 +12,7 @@ chunking:
 
 retrieval:
   retriever: bm25  # bm25, dense, hybrid
-  model: sentence-transformers/all-MiniLM-L6-v2 # dense
+  model: models/kubernetes_updated_minilm_initialized # sentence-transformers/all-MiniLM-L6-v2 , models/kubernetes_updated_minilm_initialized
   top_k: 20
   candidate_k: 100  # chunks to be extracted from both sparse & dense retieval for hybrid retrieval
   rrf_k: 60
@@ -25,7 +25,7 @@ generation:
 evaluation:
   mode: retrieval              # retrieval or both
   num_queries: 0          # Set to 0 to evaluate all queries
-  version_name: sparse_ret_no_rerank        
+  version_name: dense_initialized_ret_no_rerank       
   commit_changes: false   # to test temporary code change: true/false
 
   metrics:

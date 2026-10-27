@@ -19,7 +19,7 @@ from src.evaluation.utils import (
     PeakMemoryMonitor,
 )
 
-from src.embeddings.embeddings import MODEL_NAME, EMBEDDINGS_PATH
+from embeddings.new_minilm_vocab_embeddings import MODEL_NAME, EMBEDDINGS_PATH
 
 from src.retrieval.sparse_retrieval_bm25 import load_index
 from src.retrieval.dense_retrieval_minilm import load_dense_index
