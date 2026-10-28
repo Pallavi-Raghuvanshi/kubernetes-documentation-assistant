@@ -8,7 +8,7 @@ def search(
     query: str,
     chunks: list[dict],
     bm25,
-    embeddings,
+    collection,
     model,
     top_k: int = 10,
     candidate_k: int = 100,
@@ -28,7 +28,11 @@ def search(
     if rrf_k < 1:
         raise ValueError("rrf_k must be at least 1.")
 
-    candidate_k = min(candidate_k, len(chunks))
+    candidate_k = min(
+        candidate_k,
+        len(chunks),
+        collection.count(),
+    )
 
     bm25_results, query_tokens = bm25_search(
         query=query,
@@ -39,8 +43,7 @@ def search(
 
     dense_results, dense_query_tokens = dense_search(
         query=query,
-        chunks=chunks,
-        embeddings=embeddings,
+        collection=collection,
         model=model,
         top_k=candidate_k,
     )

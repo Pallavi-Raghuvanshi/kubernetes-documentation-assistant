@@ -8,7 +8,6 @@ import yaml
 import sys
 import webbrowser
 from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer
 
 from src.rag_pipeline import run_pipeline
 
@@ -240,6 +239,7 @@ def main() -> None:
 
     # ---------------------------------------------------------
     # 6. Load the selected retrieval index once
+    # ---------------------------------------------------------
     retriever = retrieval_config["retriever"].lower()
     MODEL_NAME = config["retrieval"]["model"]
 
@@ -248,31 +248,20 @@ def main() -> None:
         index = (chunks, bm25)
 
     elif retriever == "dense":
-        chunks, embeddings = load_dense_index()
+        collection = load_dense_index()
         model = SentenceTransformer(MODEL_NAME)
-        index = (chunks, embeddings, model)
+        index = (collection, model)
 
     elif retriever == "hybrid":
         chunks, bm25 = load_index()
-        dense_chunks, embeddings = load_dense_index()
-
-        bm25_ids = [chunk["chunk_id"] for chunk in chunks]
-        dense_ids = [chunk["chunk_id"] for chunk in dense_chunks]
-
-        if bm25_ids != dense_ids:
-            raise ValueError(
-                "BM25 and dense indexes have different chunk ordering."
-            )
-
+        collection = load_dense_index()
         model = SentenceTransformer(MODEL_NAME)
-        index = (chunks, bm25, embeddings, model)
+        index = (chunks, bm25, collection, model)
 
     else:
         raise ValueError(f"Unsupported retriever: {retriever}")
 
-    print(f"Retriever: {retriever}")
-
-    query_output_path.write_text("", encoding="utf-8")
+    print(f"Retriever: {retriever}", flush=True)
 
     overall_memory_monitor = PeakMemoryMonitor()
     overall_memory_monitor.start()
@@ -453,7 +442,6 @@ def main() -> None:
 
     finally:
         overall_peak_memory_mb = overall_memory_monitor.stop()
-
     # ---------------------------------------------------------
     # 10. Summarize scores and performance measurements
     # ---------------------------------------------------------

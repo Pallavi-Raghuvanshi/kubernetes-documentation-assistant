@@ -10,6 +10,10 @@ chunking:
   chunk_size: 512
   chunk_overlap: 128
 
+vector_store:
+  provider: chroma
+  batch_size: 500
+
 retrieval:
   retriever: dense  # bm25, dense, hybrid
   model: models/kubernetes_updated_minilm_initialized  # sentence-transformers/all-MiniLM-L6-v2 , models/kubernetes_updated_minilm_initialized
@@ -25,7 +29,7 @@ generation:
 evaluation:
   mode: retrieval              # retrieval or both
   num_queries: 0          # Set to 0 to evaluate all queries
-  version_name: a       
+  version_name: densen_chroma_ret_no_rerank       
   commit_changes: false   # to test temporary code change: true/false
 
   metrics:

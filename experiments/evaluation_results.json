@@ -362,16 +362,16 @@
       "peak_memory_mb": 700.23
     }
   },
-  "a": {
-    "git_commit": "ba4e83ae444158502de4b2c8e90722dfe996bbd2",
+  "densen_chroma_ret_no_rerank": {
+    "git_commit": "5af6f3db01de769be82781fc7a18f951ecb6a0b6",
     "query_count": 30,
     "retrieval": {
       "recall_at_k": 0.45,
       "precision_at_k": 0.0533,
       "mrr": 0.3037,
       "hit_rate_at_k": 0.6,
-      "latency_s": 0.0204,
-      "peak_memory_mb": 548.526
+      "latency_s": 0.046,
+      "peak_memory_mb": 576.341
     },
     "generation": {
       "latency_s": null,
@@ -382,8 +382,8 @@
       "peak_memory_mb": null
     },
     "overall": {
-      "latency_s": 0.0233,
-      "peak_memory_mb": 549.54
+      "latency_s": 0.0495,
+      "peak_memory_mb": 577.25
     }
   }
 }

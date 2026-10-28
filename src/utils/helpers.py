@@ -29,7 +29,7 @@ def get_queries() -> list[dict]:
 
 def load_chunks() -> list[dict]:
     chunks = []
-    CHUNKS_PATH = ROOT / "data" / "processed" / "kubernetes" / "chunks.jsonl"
+    CHUNKS_PATH = ROOT / "data" / "chunks.jsonl"
 
     with CHUNKS_PATH.open(encoding="utf-8") as file:
         for line in file:

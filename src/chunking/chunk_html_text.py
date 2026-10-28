@@ -82,7 +82,7 @@ def main() -> None:
 
     input_dir = ROOT / "data" / "processed" / corpus_name
     sources_path = input_dir / "sources.jsonl"
-    output_path = input_dir / "chunks.jsonl"
+    output_path = ROOT / "chunks.jsonl"
 
     if not input_dir.is_dir():
         raise FileNotFoundError(
@@ -153,8 +153,8 @@ def main() -> None:
             for content in chunks:
                 record = {
                     "chunk_id": f"{corpus_name}_{records_written:05d}",
-                    "source": original_url,
                     "chunk_size": len(content),
+                    "source": original_url,
                     "text": content,
                 }
 

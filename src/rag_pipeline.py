@@ -52,11 +52,11 @@ def run_pipeline(
         )
 
     elif retriever == "dense":
-        chunks, embeddings, model = index
+        collection, model = index
+
         results, query_tokens = dense_search(
             query=question,
-            chunks=chunks,
-            embeddings=embeddings,
+            collection=collection,
             model=model,
             top_k=(
                 config["retrieval"]["candidate_k"]
@@ -66,12 +66,13 @@ def run_pipeline(
         )
 
     elif retriever == "hybrid":
-        chunks, bm25, embeddings, model = index
+        chunks, bm25, collection, model = index
+
         results, query_tokens = hybrid_search(
             query=question,
             chunks=chunks,
             bm25=bm25,
-            embeddings=embeddings,
+            collection=collection,
             model=model,
             top_k=(
                 config["retrieval"].get("candidate_k", 100)
@@ -183,25 +184,16 @@ def main():
 
         chunks, embeddings = load_dense_index()
         model = SentenceTransformer(config["retrieval"]["model"])
-        index = (chunks, embeddings, model)
+        index = (collection, model)
 
     elif retriever == "hybrid":
         from sentence_transformers import SentenceTransformer
-        from embeddings.new_minilm_vocab_emb import MODEL_NAME
         from src.retrieval.dense_retrieval_minilm import load_dense_index
 
         chunks, bm25 = load_index()
-        dense_chunks, embeddings = load_dense_index()
-
-        if [c["chunk_id"] for c in chunks] != [
-            c["chunk_id"] for c in dense_chunks
-        ]:
-            raise ValueError(
-                "BM25 and dense indexes contain different chunk ordering."
-            )
-
-        model = SentenceTransformer(MODEL_NAME)
-        index = (chunks, bm25, embeddings, model)
+        collection = load_dense_index()
+        model = SentenceTransformer(config["retrieval"]["model"])
+        index = (chunks, bm25, collection, model)
 
     else:
         raise ValueError(f"Unsupported retriever: {retriever}")
