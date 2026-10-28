@@ -19,3 +19,5 @@ scrapy
 psutil
 # data/embeddings
 sentence_transformers
+# 
+chromadb

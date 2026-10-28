@@ -13,7 +13,7 @@ def load_embeddings() -> np.ndarray:
     if MODEL_NAME == "sentence-transformers/all-MiniLM-L6-v2":
         EMBEDDINGS_PATH = ROOT / "data" / "embeddings" / "kubernetes_minilm_embeddings.npy"
     elif MODEL_NAME == "models/kubernetes_updated_minilm_initialized":
-        EMBEDDINGS_PATH = ROOT / "data" / "embeddings" / "kubernetes_minilm_initialized_embeddings.npy"
+        EMBEDDINGS_PATH = ROOT / "data" / "embeddings" / "kubernetes_minilm_new_embeddings.npy"
     else:
         raise ValueError(f"Invalid model selected in configs: {MODEL_NAME}")
     if not EMBEDDINGS_PATH.exists():

@@ -3,7 +3,7 @@ import csv
 from pathlib import Path
 import re
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 INPUT_PATH = ROOT / "data" / "ranked_keywords.csv"
 
 
@@ -14,8 +14,8 @@ def main():
         )
 
     total_keywords = 0
-    subword_counts = {20: 0, 30: 0, 40: 0}
-    frequency_thresholds = {50: 0, 80: 0, 100: 0}
+    subword_counts = {3: 0, 10: 0, 15: 0}
+    frequency_thresholds = {10: 0, 20: 0, 30: 0}
 
     with INPUT_PATH.open("r", encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
@@ -122,13 +122,13 @@ def main():
     print(f"Input file: {INPUT_PATH}")
     print(f"Total keywords analyzed: {total_keywords}\n")
 
-    for threshold in (50, 80, 100):
+    for threshold in (30, 20, 10):
         print(
             f"Keywords with frequency > {threshold}: "
             f"{frequency_thresholds[threshold]}"
         )
     print()
-    for threshold in (40, 30, 20):
+    for threshold in (15, 10, 3):
         print(
             f"Keywords with > {threshold} subwords: "
             f"{subword_counts[threshold]}"

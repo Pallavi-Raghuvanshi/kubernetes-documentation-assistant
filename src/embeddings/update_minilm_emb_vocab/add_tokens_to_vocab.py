@@ -9,13 +9,13 @@ from src.utils.helpers import load_config
 ROOT = Path(__file__).resolve().parents[3]
 
 INPUT_PATH = ROOT / "data" / "ranked_keywords.csv"
-OUTPUT_DIR = ROOT / "models" / "kubernetes_updated_tokenizer_vocab"
+OUTPUT_DIR = ROOT / "models" / "kubernetes_upd_tokenizer_vocab"
 
 config = load_config()
 MODEL_NAME = config["retrieval"]["model"]
 
-TOP_FREQUENCY = 150
-TOP_FRAGMENTATION = 50
+TOP_FREQUENCY = 500
+TOP_FRAGMENTATION = 500
 
 def main():
     with INPUT_PATH.open("r", encoding="utf-8", newline="") as file:
@@ -26,14 +26,14 @@ def main():
         row["occurrences"] = int(row["occurrences"])
         row["subword_count"] = int(row["subword_count"])
 
-    # Select top 150 by frequency.
+    # Select by frequency.
     top_frequency = sorted(
         records,
         key=lambda row: row["occurrences"],
         reverse=True,
     )[:TOP_FREQUENCY]
 
-    # Select top 50 by subword count.
+    # Select by subword count.
     top_fragmentation = sorted(
         records,
         key=lambda row: row["subword_count"],

@@ -10,7 +10,7 @@ from src.utils.helpers import load_config
 
 ROOT = Path(__file__).resolve().parents[3]
 
-TOKENIZER_PATH = ROOT / "models" / "kubernetes_updated_tokenizer_vocab"
+TOKENIZER_PATH = ROOT / "models" / "kubernetes_upd_tokenizer_vocab"
 OUTPUT_DIR = ROOT / "models" / "kubernetes_updated_minilm_initialized"
 
 

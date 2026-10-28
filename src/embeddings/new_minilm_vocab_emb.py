@@ -10,7 +10,7 @@ from src.utils.helpers import load_chunks
 
 ROOT = Path(__file__).resolve().parents[2]
 EMBEDDINGS_DIR = ROOT / "data" / "embeddings"
-EMBEDDINGS_PATH = EMBEDDINGS_DIR / "kubernetes_minilm_initialized_embeddings.npy"
+EMBEDDINGS_PATH = EMBEDDINGS_DIR / "kubernetes_minilm_new_embeddings.npy"
 
 def build_embeddings() -> None:
     start_time = time.perf_counter()
