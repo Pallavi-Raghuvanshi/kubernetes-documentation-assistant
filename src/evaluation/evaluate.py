@@ -88,62 +88,6 @@ def summarize_metrics(
     }
 
 
-def get_git_commit() -> str:
-    """Return the current Git commit hash."""
-
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return result.stdout.strip()
-
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return "unknown"
-
-
-def run_git(args: list[str]) -> subprocess.CompletedProcess:
-    """Run a Git command from the project root."""
-
-    return subprocess.run(
-        ["git", *args],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-
-def commit_code_changes() -> str:
-    """Stage and commit changes before evaluation."""
-
-    run_git(["add", "-A"])
-
-    staged_changes = subprocess.run(
-        ["git", "diff", "--cached", "--quiet"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    if staged_changes.returncode == 1:
-        run_git([
-            "commit",
-            "-m",
-            "Update RAG implementation before evaluation",
-        ])
-    elif staged_changes.returncode != 0:
-        raise RuntimeError(
-            f"Could not inspect staged changes: "
-            f"{staged_changes.stderr}"
-        )
-
-    return run_git(["rev-parse", "HEAD"]).stdout.strip()
-
-
 def main() -> None:
     # ---------------------------------------------------------
     # 1. Load configuration and benchmark queries
@@ -197,13 +141,6 @@ def main() -> None:
     print(f"Evaluation mode: {evaluation_config.get('mode', 'both')}")
     print(f"Queries selected: {len(queries)}")
     print(f"Version name: {version}")
-
-    if commit_changes:
-        git_commit = commit_code_changes()
-        print(f"Git commit: {git_commit}")
-    else:
-        git_commit = get_git_commit()
-        print("Skipping Git commit.")
 
     # ---------------------------------------------------------
     # 4. Read retrieval and generation configuration
@@ -446,7 +383,6 @@ def main() -> None:
     # 10. Summarize scores and performance measurements
     # ---------------------------------------------------------
     version_metrics = {
-        "git_commit": git_commit,
         "query_count": len(queries),
         "retrieval": {
             **summarize_metrics(metric_values["retrieval"]),
@@ -515,10 +451,6 @@ def main() -> None:
     print("Retrieval metrics :", version_metrics["retrieval"])
     print("Generation metrics:", version_metrics["generation"])
     print("Overall metrics   :", version_metrics["overall"])
-    if evaluation_config.get("commit_changes", False):
-        print(f"Git commit: {git_commit}")
-    else:
-        print("Git commit        : skipped")
     print(f"\nResults saved to          : {OUTPUT_PATH}")
     print(f"Per-query results saved to: {query_output_path}")
     subprocess.run(

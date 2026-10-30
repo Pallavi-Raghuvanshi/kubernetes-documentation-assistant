@@ -29,7 +29,7 @@ generation:
 evaluation:
   mode: retrieval              # retrieval or both
   num_queries: 0          # Set to 0 to evaluate all queries
-  version_name: dense_chromal2    
+  version_name: dense_chroma_l2    
   commit_changes: false   # to test temporary code change: true/false
 
   metrics:

@@ -67,11 +67,10 @@ The following results were calculated from the six supplied JSONL evaluation rep
 
 * **Recall@10:** Fraction of relevant chunks retrieved within the top 10.
 * **Precision@10:** Fraction of the top 10 results that are relevant.
-* **MRR:** Mean reciprocal rank of the first relevant result.
+* **MRR:** Mean reciprocal rank of the relevant chunk retrieved first.
 * **Hit Rate@10:** Fraction of queries with at least one relevant result in the top 10.
 
 *These results describe the supplied evaluation reports; they do not establish the cause of every performance difference. The reranking experiments must also be interpreted in light of candidate selection and reranker configuration.*
-
 
 ### CPU Performance
 
@@ -205,19 +204,6 @@ The current workflow covers:
 9. Analyze per-query failures.
 
 Check the current source filenames before running individual stages, as the implementation has evolved beyond the original numbered scripts.
-
-### Per-Query Reports
-
-HTML and JSONL reports are available for the six evaluated configurations:
-
-* `<span>sparse_ret_no_rerank</span>`
-* `<span>sparse_ret_rerank</span>`
-* `<span>dense_ret_no_rerank</span>`
-* `<span>dense_ret_rerank</span>`
-* `<span>hybrid_ret_no_rerank</span>`
-* `<span>hybrid_ret_rerank</span>`
-
-These reports support query-level inspection of relevant chunks, retrieved rankings, latency, and memory measurements.
 
 ## 9. Next Experiments
 
