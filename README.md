@@ -72,6 +72,7 @@ The following results were calculated from the six supplied JSONL evaluation rep
 
 *These results describe the supplied evaluation reports; they do not establish the cause of every performance difference. The reranking experiments must also be interpreted in light of candidate selection and reranker configuration.*
 
+
 ### CPU Performance
 
 | Retrieval configuration | Mean latency (s) | p50 latency (s) | p95 latency (s) |
@@ -237,3 +238,17 @@ These reports support query-level inspection of relevant chunks, retrieved ranki
 * [Domain-specific tokenizer vocabulary expansion](https://medium.com/@pierre_guillou/nlp-how-to-add-a-domain-specific-vocabulary-new-tokens-to-a-subword-tokenizer-already-trained-33ab15613a41)
 * [Sentence Transformers](https://www.sbert.net/)
 * [Hugging Face Transfo](https://huggingface.co/docs/transformers/index)
+
+## 11. Regenerate records using git hash
+
+To Temporarily Switch your Workspace to a Commit
+
+```
+git switch --detach <commit-hash>
+```
+
+To go back to current directory
+
+```
+git switch -
+```

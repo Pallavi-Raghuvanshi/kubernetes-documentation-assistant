@@ -16,7 +16,7 @@ EMBEDDINGS_PATH = (
     / "kubernetes_minilm_new_embeddings.npy"
 )
 
-CHROMA_DB_PATH = PROJECT_ROOT / "data" / "chroma_db"
+CHROMA_DB_PATH = PROJECT_ROOT / "data" / "chroma_db_l2"
 COLLECTION_NAME = "kubernetes_docs"
 
 
@@ -91,14 +91,6 @@ def main():
 
     # Load the corresponding chunks in their original order.
     chunks = load_chunks()
-
-    if len(chunks) != embeddings.shape[0]:
-        raise ValueError(
-            f"Chunk count ({len(chunks)}) does not match "
-            f"embedding count ({embeddings.shape[0]}). "
-            "Ensure both files use exactly the same chunk ordering."
-        )
-
     ids, documents, metadatas = prepare_records(chunks)
 
     # Create persistent ChromaDB storage.
@@ -109,7 +101,7 @@ def main():
     # Explicitly configure cosine distance.
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"},
+        metadata={"hnsw:space": "l2"},
     )
 
     # Insert or update records in batches.

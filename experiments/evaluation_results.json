@@ -385,5 +385,29 @@
       "latency_s": 0.0495,
       "peak_memory_mb": 577.25
     }
+  },
+  "dense_chromal2": {
+    "git_commit": "f74b42803a5d1f008cf84637a47310993dca48da",
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.45,
+      "precision_at_k": 0.0533,
+      "mrr": 0.3037,
+      "hit_rate_at_k": 0.6,
+      "latency_s": 0.0233,
+      "peak_memory_mb": 578.41
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0209,
+      "peak_memory_mb": 577.19
+    }
   }
 }

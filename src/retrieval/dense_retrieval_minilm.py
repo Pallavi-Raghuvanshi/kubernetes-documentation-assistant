@@ -11,7 +11,7 @@ def load_dense_index():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
-    client = chromadb.PersistentClient(path=str(root / "data" / "chroma_db"))
+    client = chromadb.PersistentClient(path=str(root / "data" / "chroma_db_l2"))
     return client.get_collection(name="kubernetes_docs")
 
 def search(
