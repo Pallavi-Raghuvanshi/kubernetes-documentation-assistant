@@ -101,7 +101,7 @@ def main():
     # Explicitly configure cosine distance.
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
-        metadata={"hnsw:space": "l2"},
+        metadata={"hnsw:space": "ip"},
     )
 
     # Insert or update records in batches.

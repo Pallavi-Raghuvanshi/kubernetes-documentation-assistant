@@ -238,3 +238,9 @@ To go back to current directory
 ```
 git switch -
 ```
+
+to view hash of last commits
+
+```
+git log --oneline 
+```

@@ -393,8 +393,8 @@
       "precision_at_k": 0.0533,
       "mrr": 0.3037,
       "hit_rate_at_k": 0.6,
-      "latency_s": 0.0349,
-      "peak_memory_mb": 575.8413
+      "latency_s": 0.039,
+      "peak_memory_mb": 578.634
     },
     "generation": {
       "latency_s": null,
@@ -405,8 +405,31 @@
       "peak_memory_mb": null
     },
     "overall": {
-      "latency_s": 0.0384,
-      "peak_memory_mb": 576.74
+      "latency_s": 0.0422,
+      "peak_memory_mb": 579.5
+    }
+  },
+  "dense_chroma_ip": {
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.45,
+      "precision_at_k": 0.0533,
+      "mrr": 0.3037,
+      "hit_rate_at_k": 0.6,
+      "latency_s": 0.0217,
+      "peak_memory_mb": 576.0443
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0246,
+      "peak_memory_mb": 576.98
     }
   }
 }
