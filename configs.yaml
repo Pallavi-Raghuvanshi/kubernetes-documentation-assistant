@@ -8,10 +8,11 @@ ingestion:
 
 chunking:
   chunk_size: 512
-  chunk_overlap: 128
+  chunk_overlap: 51
 
 vector_store:
   provider: chroma
+  similarity_search: ip
   batch_size: 500
 
 retrieval:
@@ -28,8 +29,8 @@ generation:
 
 evaluation:
   mode: retrieval              # retrieval or both
-  num_queries: 0          # Set to 0 to evaluate all queries
-  version_name: dense_chroma_ip     
+  num_queries: 150          # 0-150
+  version_name: dense_512_10%_150q     
   commit_changes: false   # to test temporary code change: true/false
 
   metrics:

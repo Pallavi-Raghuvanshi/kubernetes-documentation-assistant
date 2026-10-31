@@ -1,3 +1,4 @@
+# src/vector_store/index_chroma.py
 from pathlib import Path
 import json
 import time
@@ -7,16 +8,15 @@ import numpy as np
 from src.utils.helpers import load_chunks, load_config
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[2]
 
 EMBEDDINGS_PATH = (
-    PROJECT_ROOT
+    ROOT
     / "data"
     / "embeddings"
     / "kubernetes_minilm_new_embeddings.npy"
 )
 
-CHROMA_DB_PATH = PROJECT_ROOT / "data" / "chroma_db_l2"
 COLLECTION_NAME = "kubernetes_docs"
 
 
@@ -25,20 +25,19 @@ COLLECTION_NAME = "kubernetes_docs"
 # --------------------------------------------------
 
 def prepare_records(chunks: list[dict]):
-    """Extract text, stable IDs, and scalar metadata."""
+    """Prepare document text, IDs, and metadata for ChromaDB."""
 
     documents = []
     ids = []
     metadatas = []
 
-    # Adjust these field names to match your chunk schema.
-    text_fields = ("chunk_id", "chunk_size", "source", "text")
-
     for index, chunk in enumerate(chunks):
+
+        # Extract actual documentation text.
         text = next(
             (
                 chunk[field]
-                for field in text_fields
+                for field in ("text", "page_content", "content", "document")
                 if isinstance(chunk.get(field), str)
                 and chunk[field].strip()
             ),
@@ -47,36 +46,43 @@ def prepare_records(chunks: list[dict]):
 
         if text is None:
             raise ValueError(
-                f"Could not find chunk text at record {index}. "
+                f"Missing document text at record {index}. "
                 f"Available fields: {list(chunk.keys())}"
             )
 
-        # Prefer an existing stable identifier.
+        # Extract the chunk ID.
         chunk_id = chunk.get("chunk_id", chunk.get("id", index))
+
+        if str(chunk_id) == text:
+            raise ValueError(
+                f"Chunk {chunk_id} contains its ID as document text."
+            )
 
         ids.append(str(chunk_id))
         documents.append(text)
 
-        # ChromaDB metadata must contain supported scalar values.
-        metadata = {}
+        # Preserve existing metadata, including source if available.
+        metadata = {
+            key: value
+            for key, value in chunk.items()
+            if key not in {
+                "text",
+                "page_content",
+                "content",
+                "document",
+                "chunk_id",
+                "id",
+            }
+            and isinstance(value, (str, int, float, bool))
+        }
 
-        for key, value in chunk.items():
-            if key in text_fields or key in {"chunk_id", "id"}:
-                continue
-
-            if isinstance(value, (str, int, float, bool)):
-                metadata[key] = value
-
-        metadatas.append(metadata or {"chunk_index": index})
+        metadata["chunk_index"] = index
+        metadatas.append(metadata)
 
     if len(set(ids)) != len(ids):
-        raise ValueError(
-            "Duplicate chunk IDs found. Generate unique, stable IDs "
-            "before indexing."
-        )
+        raise ValueError("Duplicate chunk IDs found.")
 
     return ids, documents, metadatas
-
 
 # --------------------------------------------------
 # Index embeddings in ChromaDB
@@ -84,6 +90,11 @@ def prepare_records(chunks: list[dict]):
 
 def main():
     start_time = time.time()
+    configs = load_config()
+    ss = configs["vector_store"]["similarity_search"]
+    chunk_size = configs["chunking"]["chunk_size"]
+    overlap = configs["chunking"]["chunk_overlap"]
+    CHROMA_DB_PATH = ROOT / "data" / "vector_store" / f"chromaDB_{ss}_{chunk_size}_{overlap}"
 
     # Load existing embeddings; do not regenerate them.
     embeddings = np.load(EMBEDDINGS_PATH)
@@ -91,21 +102,34 @@ def main():
 
     # Load the corresponding chunks in their original order.
     chunks = load_chunks()
+    if not chunks:
+        raise ValueError("No chunks were loaded.")
+
+    print("\n--- First source chunk ---")
+    print(chunks[0])
+
     ids, documents, metadatas = prepare_records(chunks)
 
-    # Create persistent ChromaDB storage.
+    print("\n--- First prepared record ---")
+    print("ID:", ids[0])
+    print("Text:", documents[0][:200])
+    print("Metadata:", metadatas[0])
+
     client = chromadb.PersistentClient(
         path=str(CHROMA_DB_PATH)
     )
 
-    # Explicitly configure cosine distance.
-    collection = client.get_or_create_collection(
+    if COLLECTION_NAME in [
+        collection.name for collection in client.list_collections()
+    ]:
+        client.delete_collection(name=COLLECTION_NAME)
+
+    collection = client.create_collection(
         name=COLLECTION_NAME,
-        metadata={"hnsw:space": "ip"},
+        metadata={"hnsw:space": configs["vector_store"]["similarity_search"]},
     )
 
     # Insert or update records in batches.
-    configs = load_config()
     batch_size = configs["vector_store"]["batch_size"]
 
     for start in range(0, len(chunks), batch_size):

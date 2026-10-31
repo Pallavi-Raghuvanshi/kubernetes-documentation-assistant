@@ -82,7 +82,7 @@ def main() -> None:
 
     input_dir = ROOT / "data" / "processed" / corpus_name
     sources_path = input_dir / "sources.jsonl"
-    output_path = ROOT / "chunks.jsonl"
+    output_path = ROOT / "data" / "chunks" / f"chunks_{chunk_size}_{overlap}.jsonl"
 
     if not input_dir.is_dir():
         raise FileNotFoundError(

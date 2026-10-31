@@ -1,0 +1,35 @@
+Build a RAG evaluation dataset from the Kubernetes docs.
+
+INPUTS
+- kubernetes.zip: one text file per page, named by the last URL segment. Line 1 is "# Title"; sections are "##" headings.
+- kubernetes_urls.jsonl: one {"url": ...} per line.
+
+STEP 1 - MAP FIRST (report before generating)
+Match each file to its URL by last segment. Ignore "_print" URLs, near-empty index pages and contribute/* pages. If a file name matches several URLs, use the page title and content to pick one; if unsure, skip the file. Fix mismatches by hand (e.g. version-skew-policy is under /releases/). Report counts: unique, ambiguous, unmatched.
+
+STEP 2 - GENERATE 150 QUERIES (Q001-Q150), 30 per type, in this order
+1. Short (e.g. "CrashLoopBackOff")
+2. Technical (e.g. "kubectl rollout undo")
+3. Natural-language (e.g. "How do I expose a Deployment inside the cluster?")
+4. Troubleshooting (e.g. "Why is my Pod stuck in Pending?")
+5. Multi-concept: 2+ resources, 2+ passages from different pages or sections
+
+Within each 30, spread queries across all topic areas: concepts (workloads, networking, storage, configuration, security, scheduling, architecture, cluster admin, policy, containers, extend), tasks, tutorials, setup, reference. No duplicate queries.
+
+RULES
+- Pick the passage first, then write the query and answer from it.
+- ground_truth_context is copied word for word, as the smallest span that answers the query (under about 1000 characters, cut only at paragraph or sentence boundaries).
+- Section is the nearest real heading in the file.
+- The passage must support the answer.
+
+CSV COLUMNS (UTF-8, all fields quoted)
+query_id, query, ground_truth_answer, source_file, ground_truth_context
+- ground_truth_answer: 2-3 lines (about 25 words max), written only from the passage
+- source_file: URL path after /docs/ plus ".md" (e.g. concepts/workloads/pods/pod-lifecycle.md)
+- ground_truth_context: "Section Heading: passage"
+- Multi-passage rows: one file per line in source_file, passages separated by a line containing only ---, in the same order.
+
+STEP 3 - VERIFY WITH A SCRIPT
+Re-read the CSV. Confirm every passage is an exact substring of its source file, each heading exists, there are exactly 150 rows, no duplicates, no empty answers, and print counts per type by top-level section. Fix failures and re-run. Report limits.
+
+Save the CSV to outputs.

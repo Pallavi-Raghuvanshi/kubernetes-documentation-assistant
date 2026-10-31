@@ -431,5 +431,124 @@
       "latency_s": 0.0246,
       "peak_memory_mb": 576.98
     }
+  },
+  "dense_chunk512_overlap10%": {
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.3,
+      "precision_at_k": 0.0367,
+      "mrr": 0.137,
+      "hit_rate_at_k": 0.4,
+      "latency_s": 0.0287,
+      "peak_memory_mb": 571.83
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0308,
+      "peak_memory_mb": 573.38
+    }
+  },
+  "dense_chunk512_overlap5%": {
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.3,
+      "precision_at_k": 0.0367,
+      "mrr": 0.137,
+      "hit_rate_at_k": 0.4,
+      "latency_s": 0.0265,
+      "peak_memory_mb": 568.9237
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0294,
+      "peak_memory_mb": 570.05
+    }
+  },
+  "dense_chunk512_overlap20%": {
+    "query_count": 30,
+    "retrieval": {
+      "recall_at_k": 0.3,
+      "precision_at_k": 0.0367,
+      "mrr": 0.137,
+      "hit_rate_at_k": 0.4,
+      "latency_s": 0.0203,
+      "peak_memory_mb": 575.972
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0226,
+      "peak_memory_mb": 577.11
+    }
+  },
+  "dense_512_20%_150q": {
+    "query_count": 150,
+    "retrieval": {
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "mrr": null,
+      "hit_rate_at_k": null,
+      "reference_text_coverage_at_k": 0.1533,
+      "retrieved_text_relevance_at_k": 0.1378,
+      "latency_s": 0.0148,
+      "peak_memory_mb": 573.0146
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0199,
+      "peak_memory_mb": 573.96
+    }
+  },
+  "dense_512_10%_150q": {
+    "query_count": 150,
+    "retrieval": {
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "mrr": null,
+      "hit_rate_at_k": null,
+      "reference_text_coverage_at_k": 0.5721,
+      "retrieved_text_relevance_at_k": 0.024,
+      "latency_s": 0.0222,
+      "peak_memory_mb": 570.1871
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.0928,
+      "peak_memory_mb": 572.86
+    }
   }
 }

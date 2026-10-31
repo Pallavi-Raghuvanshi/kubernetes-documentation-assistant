@@ -1,16 +1,47 @@
 # src/rag_pipeline.py
 import time
-import yaml
 from pathlib import Path
 
 from src.generation._6llm_inference import generate_answer
 
 from src.retrieval.sparse_retrieval_bm25 import search as bm25_search, load_index
-from src.retrieval.dense_retrieval_minilm import search as dense_search
+from src.retrieval.dense_retrieval_minilm import search as dense_search, load_dense_index
 from src.retrieval.hybrid_retrieval_rrf import search as hybrid_search
 
 from src.reranker.cross_encoder import CrossEncoderReranker
+from src.utils.helpers import get_queries, load_config
 
+from src.retrieval.dense_retrieval_minilm import (
+    search as dense_search,
+    load_dense_index,
+)
+
+def load_retrieval_resources(config: dict):
+    """Load the resources required by the configured retriever."""
+    retriever = config["retrieval"]["retriever"].lower()
+
+    if retriever == "bm25":
+        return load_index()
+
+    elif retriever == "dense":
+        from sentence_transformers import SentenceTransformer
+
+        collection = load_dense_index()
+        model = SentenceTransformer(config["retrieval"]["model"])
+        return collection, model
+
+    elif retriever == "hybrid":
+        from sentence_transformers import SentenceTransformer
+
+        chunks, bm25 = load_index()
+        collection = load_dense_index()
+        model = SentenceTransformer(config["retrieval"]["model"])
+
+        return chunks, bm25, collection, model
+
+    else:
+        raise ValueError(f"Unsupported retriever: {retriever}")
+    
 def run_pipeline(
     question: str,
     config: dict,
@@ -18,6 +49,9 @@ def run_pipeline(
     memory_monitor_factory=None,
     run_generation: bool = True,
 ) -> dict:
+
+    if index is None:
+        index = load_retrieval_resources(config)
 
     retrieval_memory_monitor = (
         memory_monitor_factory()
@@ -160,66 +194,51 @@ def run_pipeline(
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
-
-    with (root / "queries.yaml").open(encoding="utf-8") as file:
-        queries = yaml.safe_load(file)["queries"]
-
-    with (root / "configs.yaml").open(encoding="utf-8") as file:
-        config = yaml.safe_load(file)
+    queries = get_queries()
+    config = load_config()
 
     # Limit queries using evaluation.num_queries.
     num_queries = int(config.get("evaluation", {}).get("num_queries", 0))
+    index = load_retrieval_resources(config)
 
-    retriever = config["retrieval"].get("retriever", "bm25").lower()
-    query_tokens = []
+    # Limit queries only when a positive limit is configured.
+    if num_queries > 0:
+        queries = queries[:num_queries]
 
-    if retriever == "bm25":
-        chunks, bm25 = load_index()
-        index = (chunks, bm25)
+    for query_item in queries:
+        query_id = query_item["query_id"]
+        question = query_item["query"]
 
-    elif retriever == "dense":
-        from sentence_transformers import SentenceTransformer
-        from src.retrieval.dense_retrieval_minilm import load_dense_index
+        pipeline_result = run_pipeline(
+            question=question,
+            config=config,
+            index=index,
+        )
 
-        chunks, embeddings = load_dense_index()
-        model = SentenceTransformer(config["retrieval"]["model"])
-        index = (collection, model)
+        results = pipeline_result["results"]
+        generation_result = pipeline_result["generation_result"]
 
-    elif retriever == "hybrid":
-        from sentence_transformers import SentenceTransformer
-        from src.retrieval.dense_retrieval_minilm import load_dense_index
+        print(f"\n{'=' * 60}")
+        print(f"Query ID: {query_id}")
+        print(f"Question: {question}")
 
-        chunks, bm25 = load_index()
-        collection = load_dense_index()
-        model = SentenceTransformer(config["retrieval"]["model"])
-        index = (chunks, bm25, collection, model)
+        print("\n--- Answer ---")
+        print(generation_result["answer"])
 
-    else:
-        raise ValueError(f"Unsupported retriever: {retriever}")
+        print("\n--- Retrieved Sources ---")
+        seen_sources = set()
 
-    queries = queries[:num_queries]
+        for result in results:
+            if result["source"] not in seen_sources:
+                seen_sources.add(result["source"])
+                print(f"- {result['source']}")
 
-    pipeline_result = run_pipeline(
-        question=queries[0]["query"],
-        config=config,
-        index=index,
-    )
-
-    results = pipeline_result["results"]
-    generation_result = pipeline_result["generation_result"]
-
-    print("\n--- Answer ---")
-    print(generation_result["answer"])
-
-    print("\n--- Retrieved Sources ---")
-    seen_sources = set()
-
-    for result in results:
-        if result["source"] not in seen_sources:
-            seen_sources.add(result["source"])
-            print(f"- {result['source']}")
-
-    print("\n--- Latency ---")
-    print(f"Retrieval: {pipeline_result['retrieval_latency_seconds']:.4f} seconds")
-    print(f"Generation: {generation_result['generation_latency_seconds']:.3f} seconds")
+        print("\n--- Latency ---")
+        print(
+            f"Retrieval: "
+            f"{pipeline_result['retrieval_latency_seconds']:.4f} seconds"
+        )
+        print(
+            f"Generation: "
+            f"{generation_result['generation_latency_seconds']:.3f} seconds"
+        )

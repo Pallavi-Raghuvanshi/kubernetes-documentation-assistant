@@ -242,5 +242,21 @@ git switch -
 to view hash of last commits
 
 ```
-git log --oneline 
+git rev-parse --short HEAD
+```
+
+## 12. Log entry format
+
+```Markdown
+# 30/10/26
+
+## Experiment: 
+
+- **Aim:** 
+- **Short Commit hash:**
+- **Files changed:**
+- **Results:**
+- **Inferences:**
+- **try:**
+- **study:**
 ```

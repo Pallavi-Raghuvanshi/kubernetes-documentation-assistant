@@ -9,23 +9,16 @@ import yaml
 from rank_bm25 import BM25Okapi
 
 from src.tokenization.tokenization import tokenize
-from src.utils.helpers import load_config, load_chunks
+from src.utils.helpers import load_chunks
 
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_PATH = ROOT / "data" / "index" / "bm25_index.pkl"
 
 
-def get_chunks_path() -> Path:
-    config = load_config()
-    corpus_name = config["corpus"]["name"]
-    return ROOT / "data" / "processed" / corpus_name / "chunks.jsonl"
-
-
 def build_index() -> None:
     """Build and persist a BM25 index from processed chunks."""
-    chunks_path = get_chunks_path()
-    chunks = load_chunks(chunks_path)
+    chunks = load_chunks()
 
     tokenized_corpus = [
         tokenize(chunk["text"])

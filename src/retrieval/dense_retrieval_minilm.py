@@ -3,15 +3,21 @@ from pathlib import Path
 import chromadb
 from sentence_transformers import SentenceTransformer
 
-from src.utils.helpers import load_config, load_chunks
+from src.utils.helpers import load_config, get_queries
 
 
 def load_dense_index():
     import chromadb
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[2]
-    client = chromadb.PersistentClient(path=str(root / "data" / "chroma_db_l2"))
+    config = load_config()
+    ss = config["vector_store"]["similarity_search"]
+    chunk_size = config["chunking"]["chunk_size"]
+    overlap = config["chunking"]["chunk_overlap"]
+    ROOT = Path(__file__).resolve().parents[2]
+    CHROMA_DB_PATH = ROOT / "data" / "vector_store" / f"chromaDB_{ss}_{chunk_size}_{overlap}"
+
+    client = chromadb.PersistentClient(path=str(CHROMA_DB_PATH))
     return client.get_collection(name="kubernetes_docs")
 
 def search(
@@ -68,9 +74,9 @@ def search(
 
     return results, query_tokens
 
-def main():
+def main():    
+    
     collection = load_dense_index()
-
     config = load_config()
     model_name = config["retrieval"]["model"]
 
@@ -78,10 +84,10 @@ def main():
 
     model = SentenceTransformer(model_name)
 
-    query = input("\nEnter a search query: ").strip()
+    # query = input("\nEnter a search query: ").strip()
 
     results, query_tokens = search(
-        query=query,
+        query=get_queries()[0]["query"],
         collection=collection,
         model=model,
         top_k=config["retrieval"]["top_k"],
@@ -92,8 +98,9 @@ def main():
     for result in results:
         print(f"\nRank: {result['rank']}")
         print(f"Chunk ID: {result['chunk_id']}")
-        print(f"Cosine similarity: {result['score']:.4f}")
+        print(f"Source: {result['source']}")
         print(f"Text: {result['text'][:500]}")
+        print(f"Score: {result['score']:.4f}")
         print(f"Query tokens: {query_tokens}")
 
 
