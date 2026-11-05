@@ -1,6 +1,6 @@
-# RAG Frontier: CPU-Optimized Kubernetes RAG Assistant
+# Optimizing Retrieval Quality, Latency and Memory in Domain-Specific RAG Systems
 
-### **Project objective:**
+**Project objective:**
 
 Build a Kubernetes AI assistant grounded in documentation and identify the retrieval configuration that delivers the best measured relevance within practical CPU latency and memory constraints.
 
