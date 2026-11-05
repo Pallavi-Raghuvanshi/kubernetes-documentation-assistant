@@ -1,4 +1,4 @@
-# src/vector_store/index_chroma.py
+# scripts/vector_store/index_chroma.py
 from pathlib import Path
 import json
 import time
@@ -10,12 +10,10 @@ from src.utils.helpers import load_chunks, load_config
 
 ROOT = Path(__file__).resolve().parents[2]
 
-EMBEDDINGS_PATH = (
-    ROOT
-    / "data"
-    / "embeddings"
-    / "kubernetes_minilm_new_embeddings.npy"
-)
+configs = load_config()
+chunk_size = configs["chunking"]["chunk_size"]
+chunk_overlap = configs["chunking"]["chunk_overlap"]
+EMBEDDINGS_PATH = (ROOT / "data" / "embeddings" / f"kubernetes_minilm_emb_{chunk_size}_{chunk_overlap}.npy")
 
 COLLECTION_NAME = "kubernetes_docs"
 
@@ -98,22 +96,42 @@ def main():
 
     # Load existing embeddings; do not regenerate them.
     embeddings = np.load(EMBEDDINGS_PATH)
-    print(f"Embedding shape: {embeddings.shape}")
-
-    # Load the corresponding chunks in their original order.
+    #------------------------------------------------
     chunks = load_chunks()
+
     if not chunks:
         raise ValueError("No chunks were loaded.")
+
+    print("\n--- Data alignment check ---")
+    print("Embedding file:", EMBEDDINGS_PATH)
+    print("Number of chunks:", len(chunks))
+    print("Embedding shape:", embeddings.shape)
+
+    if embeddings.ndim != 2:
+        raise ValueError("Embeddings must be a 2D array.")
+
+    if len(chunks) != embeddings.shape[0]:
+        raise ValueError(
+            f"Chunk and embedding count mismatch: "
+            f"{len(chunks)} chunks vs {embeddings.shape[0]} embeddings."
+        )
+
+    if not np.isfinite(embeddings).all():
+        raise ValueError("Embeddings contain NaN or infinite values.")
+
+    print("Alignment: PASSED")
 
     print("\n--- First source chunk ---")
     print(chunks[0])
 
     ids, documents, metadatas = prepare_records(chunks)
-
     print("\n--- First prepared record ---")
     print("ID:", ids[0])
-    print("Text:", documents[0][:200])
+    print("Document:", documents[0][:300])
     print("Metadata:", metadatas[0])
+
+    # return
+    #------------------------------------------------
 
     client = chromadb.PersistentClient(
         path=str(CHROMA_DB_PATH)

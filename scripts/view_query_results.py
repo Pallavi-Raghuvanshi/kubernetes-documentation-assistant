@@ -6,75 +6,28 @@ import json
 from pathlib import Path
 from typing import Any
 
-def pretty(value: Any) -> str:
-    """Convert a value to a readable string."""
-    if value is None:
-        return "Not available"
+import sys
+from pathlib import Path
 
-    if isinstance(value, (dict, list, tuple, set)):
-        if isinstance(value, set):
-            value = sorted(value, key=str)
-
-        return json.dumps(
-            value,
-            indent=2,
-            ensure_ascii=False,
-            default=str,
-        )
-
-    return str(value)
-
-
-def esc(value: Any) -> str:
-    """Convert a value to a readable, HTML-escaped string."""
-    return html.escape(pretty(value))
-
-
-def load_jsonl(path: Path) -> list[dict]:
-    """Load evaluation records from a JSONL file."""
-    records = []
-
-    with path.open("r", encoding="utf-8") as file:
-        for line_number, line in enumerate(file, start=1):
-            if not line.strip():
-                continue
-
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"Invalid JSON on line {line_number}: {exc}"
-                ) from exc
-
-            if not isinstance(record, dict):
-                raise ValueError(
-                    f"Expected a JSON object on line {line_number}"
-                )
-
-            records.append(record)
-
-    return records
-
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from src.evaluation.evaluate2 import calculate_text_proportion_metrics
 
 def get_text_proportion_metrics(record: dict) -> dict:
-    """Read character-based text-proportion metrics saved by evaluate2.py."""
-    text_proportions = record.get("text_proportions", {}) or {}
+    """Calculate text-proportion metrics using evaluate2.py."""
 
-    if not isinstance(text_proportions, dict):
-        text_proportions = {}
+    gt_context_tokens = record["gt_context_tokens"]
+    retrieved_results = record["retrieved_results"]
 
-    return {
-        "Reference Text Coverage": text_proportions.get(
-            "reference_text_coverage_at_k"
-        ),
-        "Retrieved Text Relevance": text_proportions.get(
-            "retrieved_text_relevance_at_k"
-        ),
-    }
-
+    return calculate_text_proportion_metrics(
+        gt_context_tokens=gt_context_tokens,
+        retrieved_results=retrieved_results,
+        top_k=len(retrieved_results),
+    )
 
 def format_metric(value: Any) -> str:
-    """Format a numeric proportion as a percentage."""
+    """Format a metric as a percentage."""
+
     if value is None:
         return "Not available"
 
@@ -86,89 +39,157 @@ def format_metric(value: Any) -> str:
     return f"{numeric_value:.2%}"
 
 
+def esc(value: Any) -> str:
+  """Convert a value to a readable, HTML-escaped string."""
+  # print(f".................esc......................")
+  return html.escape(pretty(value))
+
+
+def pretty(value: Any) -> str:
+  """Convert a value to a readable string."""
+  if isinstance(value, (dict, list, tuple, set)):
+      if isinstance(value, set):
+          value = sorted(value, key=str)
+      return json.dumps(
+          value,
+          indent=2,
+          ensure_ascii=False,
+          default=str,
+      )
+  # print(f".................pretty......................")
+  return str(value)
+
+
+def load_jsonl(path: Path) -> list[dict]:
+  """Load evaluation records from a JSONL file."""
+  records = []
+
+  # open jsonl file and read line by line
+  with path.open("r", encoding="utf-8") as file:
+      for line_number, line in enumerate(file, start=1):
+          if not line.strip():
+              continue
+
+          try:
+              record = json.loads(line)
+          except json.JSONDecodeError as exc:
+              raise ValueError(
+                  f"Invalid JSON on line {line_number}: {exc}"
+              ) from exc
+
+          if not isinstance(record, dict):
+              raise ValueError(
+                  f"Expected a JSON object on line {line_number}"
+              )
+
+          records.append(record)
+  # print(records)
+  # print(f".................load_jsonl.....................")
+  return records
+
+
 def render_query(record: dict, index: int) -> str:
-    """Render one evaluation record as an HTML query card."""
-    
-    query_id = record["query_id"]
-    question = record["query"]
-    query_tokens = record["query"]
-    generation = record["generation"]
 
-    if not isinstance(generation, dict):
-        generation = {}
+  # print(record.keys())
+  query_id = record["query_id"]
+  question = record["query"]
+  # query_tokens = record["query_tokens"]
+  # query_token_set = {token.lower() for token in query_tokens}
+  gt_context_tokens = record["gt_context_tokens"]
+  gt_context_token_set = {token.lower() for token in gt_context_tokens}
+  generation = record["generation"]
 
-    answer = record["ground_truth_answer"]
+  if not isinstance(generation, dict):
+      generation = {}
 
-    # Read the ground-truth reference text.
-    ground_truth_text = record["ground_truth_context"]
+  answer = record["ground_truth_answer"]
 
-    # Read the retrieved top-k results.
-    retrieved = record["retrieved_results"]
+  # Read the ground-truth reference text.
+  ground_truth_text = record["ground_truth_context"]
 
-    if not isinstance(retrieved, list):
-        retrieved = []
+  # Read the retrieved top-k results.
+  retrieved = record["retrieved_results"]
 
-    # Read the character-based text-proportion metrics.
-    metrics = get_text_proportion_metrics(record)
+  if not isinstance(retrieved, list):
+    retrieved = []
 
-    metric_html = ""
+  # Collect tokens appearing in the retrieved top-k chunks.
+  retrieved_token_set = {
+    token.lower()
+    for chunk in retrieved
+    for token in chunk["chunk_tokens"]
+  }
 
-    for name, value in metrics.items():
-        display_value = format_metric(value)
+  # Read the character-based text-proportion metrics.
+  metrics = get_text_proportion_metrics(record)
 
-        metric_html += (
-            '<div class="metric">'
-            '<span class="metric-name">'
-            f"{esc(name)}"
-            "</span>"
-            f"<strong>{html.escape(display_value)}</strong>"
-            "</div>"
-        )
+  metric_html = ""
 
-    # Display the ground-truth reference text.
-    if ground_truth_text:
-        ground_truth_html = f"<pre>{esc(ground_truth_text)}</pre>"
-    else:
-        ground_truth_html = (
-            '<p class="muted">'
-            "Ground-truth reference text is not stored "
-            "in this query record."
-            "</p>"
-        )
+  for name, value in metrics.items():
+    display_value = format_metric(value)
 
-    # Render the retrieved chunks.
-    chunks_html = ""
+    metric_html += (
+      '<div class="metric">'
+      '<span class="metric-name">'
+      f"{esc(name)}"
+      "</span>"
+      f"<strong>{html.escape(display_value)}</strong>"
+      "</div>"
+    )
 
-    for rank, chunk in enumerate(retrieved, start=1):
-        if not isinstance(chunk, dict):
-            chunk = {"content": chunk}
+  # Display the ground-truth reference text.
+  if ground_truth_text:
+    ground_truth_html = f"<pre>{esc(ground_truth_text)}</pre>"
+  else:
+    ground_truth_html = (
+      '<p class="muted">'
+      "Ground-truth reference text is not stored "
+      "in this query record."
+      "</p>"
+    )
 
-        chunk_id = chunk["chunk_id"]
-        score = chunk["score"]
+  # Render the retrieved chunks.
+  chunks_html = ""
 
-        if isinstance(score, (int, float)):
-            score = f"{score:.4f}"
+  for rank, chunk in enumerate(retrieved, start=1):
+    #----------------
+    if not isinstance(chunk, dict):
+      chunk = {"content": chunk}
 
-        content = chunk["text"]
-        chunk_tokens = chunk["chunk_tokens"]
+    chunk_id = chunk["chunk_id"]
+    score = chunk["score"]
 
-        chunks_html += f"""
-        <details class="chunk">
-          <summary>
-            <span class="rank">Rank {rank}</span>
-            <strong>{esc(chunk_id)}</strong>
-            <span class="score">Score: {esc(score)}</span>
-          </summary>
+    if isinstance(score, (int, float)):
+      score = f"{score:.4f}"
 
-          <div class="chunk-body">
-            <h4>Chunk text</h4>
-            <pre>{esc(content)}</pre>
+    content = chunk["text"]
+    chunk_tokens = chunk["chunk_tokens"]
 
-            <h4>Chunk tokens</h4>
-            <pre>{esc(chunk_tokens)}</pre>
-          </div>
-        </details>
-        """
+    chunks_html += f"""
+    <details class="chunk">
+      <summary>
+        <span class="rank">Rank {rank}</span>
+        <strong>{esc(chunk_id)}</strong>
+        <span class="score">Score: {esc(score)}</span>
+      </summary>
+
+      <div class="chunk-body">
+        <h4>Chunk text</h4>
+        <pre>{esc(content)}</pre>
+
+        <h4>Chunk tokens ({len(chunk_tokens)})</h4>
+        <div class="tokens">
+            {
+                "".join(
+                    f'<span class="token {"matched-token" if token.lower() in gt_context_token_set else ""}">'
+                    f'{esc(token)}</span>'
+                    for token in chunk_tokens
+                )
+            }
+        </div>
+      </div>
+    </details>
+    """
 
     if not chunks_html:
         chunks_html = (
@@ -177,17 +198,18 @@ def render_query(record: dict, index: int) -> str:
             "</p>"
         )
 
-    # Render the generated answer.
-    if answer is not None:
-        answer_html = f"<pre>{esc(answer)}</pre>"
-    else:
-        answer_html = (
-            '<p class="muted">'
-            "No generated answer stored in this record."
-            "</p>"
-        )
-
-    return f"""
+  # Render the generated answer.
+  if answer is not None:
+    # convert characters such as <, >, and & into HTML-safe representations
+    answer_html = f"<pre>{esc(answer)}</pre>" 
+  else:
+    answer_html = (
+      '<p class="muted">'
+      "No generated answer stored in this record."
+      "</p>"
+    )
+  # # print(f".................render_query......................")
+  return f"""
     <details class="query" {"open" if index == 0 else ""}>
       <summary>
         <span class="query-id">{esc(query_id)}</span>
@@ -198,13 +220,24 @@ def render_query(record: dict, index: int) -> str:
         <h3>Question</h3>
         <p class="question">{esc(question)}</p>
 
-        <h3>Query Tokens ({len(query_tokens)})</h3>
-        <pre>{esc(query_tokens)}</pre>
+        <h3>Ground-truth Answer</h3>
+        {answer_html}
 
-        <h3>Ground-truth Reference Text</h3>
+        <h3>Ground-truth Context</h3>
         <div class="ground-truth">
           {ground_truth_html}
         </div>
+
+        <h3>Ground-truth Context Tokens ({len(gt_context_tokens)})</h3>
+          <div class="tokens">
+            {
+              "".join(
+                  f'<span class="token {"matched-token" if token.lower() in retrieved_token_set else ""}">'
+                  f'{esc(token)}</span>'
+                  for token in gt_context_tokens
+              )
+            }
+          </div>
 
         <h3>Text-Proportion Metrics</h3>
         <div class="metrics">
@@ -217,8 +250,6 @@ def render_query(record: dict, index: int) -> str:
         <h3>Retrieved Chunks ({len(retrieved)})</h3>
         {chunks_html}
 
-        <h3>Generated Answer</h3>
-        {answer_html}
       </div>
     </details>
     """
@@ -233,61 +264,50 @@ def main() -> None:
             "RAG evaluation JSONL."
         )
     )
+    # print(1)
 
     parser.add_argument(
         "--input",
         required=True,
         help="Path to the per-query JSONL file",
     )
-
+    # print(2)
     parser.add_argument(
         "--output",
         default=None,
-        help=(
-            "HTML output path. Defaults to the input filename "
-            "with a .html extension."
-        ),
+        help="HTML output path. Defaults to the input filename with a .html extension.",
     )
-
+    # # print(3)
     args = parser.parse_args()
-
     input_path = Path(args.input)
-
-    output_path = (
-        Path(args.output)
-        if args.output
-        else input_path.with_suffix(".html")
-    )
-
-    if not input_path.is_file():
-        raise FileNotFoundError(
-            f"Input JSONL not found: {input_path}"
-        )
-
+    output_path = Path(args.output) if args.output else input_path.with_suffix(".html")
+    # print(4)
+    # if not input_path.is_file():
+    #     raise FileNotFoundError(
+    #         f"Input JSONL not found: {input_path}"
+    #     )
+    # print(5)
     records = load_jsonl(input_path)
-    #------------------------
-    from collections import Counter
+    # #------------------------
+    # from collections import Counter
 
-    records = load_jsonl(input_path)
+    # records = load_jsonl(input_path)
 
-    query_counts = Counter(
-        (record.get("query_id"), record.get("query"))
-        for record in records
-    )
+    # query_counts = Counter(
+    #     (record.get("query_id"), record.get("query"))
+    #     for record in records
+    # )
 
-    print(f"Total records: {len(records)}")
+    # print(f"Total records: {len(records)}")
 
-    for query, count in query_counts.items():
-        if count > 1:
-            print(f"Duplicate query ({count} times): {query}")
-    # ---------------------------------
-    print(f"Input file: {input_path.resolve()}")
-    print(f"Records loaded: {len(records)}")
-
-    query_html = "\n".join(
-        render_query(record, index)
-        for index, record in enumerate(records)
-    )
+    # for query, count in query_counts.items():
+    #     if count > 1:
+    #         print(f"Duplicate query ({count} times): {query}")
+            
+    # print(f"Input file: {input_path.resolve()}")
+    # print((5.5)
+    query_html = "\n".join(render_query(record, index) for index, record in enumerate(records))
+    # print(6)
 
     document = f"""<!DOCTYPE html>
 <html lang="en">
@@ -318,18 +338,20 @@ def main() -> None:
 
   h1 {{
     margin: 0 0 6px;
-    color: #f8fafc;
+    color: #60A5FA;
   }}
 
   h3 {{
     margin-top: 26px;
-    color: #cbd5e1;
+    color: #D6B878;
     font-size: 1.05rem;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #374151;
   }}
 
   h4 {{
     margin-bottom: 8px;
-    color: #cbd5e1;
+    color: #34D399;
   }}
 
   .subtitle,
@@ -509,6 +531,31 @@ def main() -> None:
       width: 100%;
     }}
   }}
+  .tokens {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px;
+      background: #0b1220;
+      border: 1px solid #263449;
+      border-radius: 8px;
+  }}
+
+  .token {{
+      display: inline-block;
+      padding: 4px 8px;
+      background: #172338;
+      color: #93c5fd;
+      border: 1px solid #2b3a52;
+      border-radius: 5px;
+      font: 12px/1.5 Consolas, monospace;
+      overflow-wrap: anywhere;
+  }}
+  .matched-token {{
+      background: #14532d;
+      color: #86efac;
+      border-color: #22c55e;
+  }}
 </style>
 </head>
 
@@ -578,21 +625,17 @@ def main() -> None:
 </body>
 </html>
 """
-
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    # print(7)
+    # Save the generated HTML report
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     output_path.write_text(
         document,
         encoding="utf-8",
     )
 
-    print(
-        f"HTML report created : {output_path.resolve()}"
-    )
-
+    print(f"HTML report saved successfully: {output_path.resolve()}")
+    print(f"Queries included: {len(records)}")
 
 if __name__ == "__main__":
     main()

@@ -4,14 +4,14 @@ import torch
 import threading
 from transformers import TextIteratorStreamer
 
-from src.models._5load_models import load_model
+from src.models.load_models import load_model
 
 # Load lazily: retrieval-only evaluation does not need Qwen.
 tokenizer = None
 model = None
 _model_lock = threading.Lock()
 
-
+# double-check locking pattern to ensure thread-safe lazy initialization of the model and tokenizer
 def get_model():
     global tokenizer, model
 

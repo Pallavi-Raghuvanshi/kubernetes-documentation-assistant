@@ -1,16 +1,19 @@
-# src/embeddings/new_minilm_vocab_embeddings.py
+# src/embeddings/new_minilm_vocab_emb.py
 from pathlib import Path
 import time
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer
 
-from src.utils.helpers import load_chunks
+from src.utils.helpers import load_chunks, load_config
 
 
 ROOT = Path(__file__).resolve().parents[2]
 EMBEDDINGS_DIR = ROOT / "data" / "embeddings"
-EMBEDDINGS_PATH = EMBEDDINGS_DIR / "kubernetes_minilm_new_embeddings.npy"
+config = load_config()
+chunk_size = config["chunking"]["chunk_size"]
+chunk_overlap = config["chunking"]["chunk_overlap"]
+EMBEDDINGS_PATH = EMBEDDINGS_DIR / f"kubernetes_minilm_emb_{chunk_size}_{chunk_overlap}.npy"
 
 def build_embeddings() -> None:
     start_time = time.perf_counter()

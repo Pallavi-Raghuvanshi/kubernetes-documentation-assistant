@@ -8,7 +8,7 @@ ingestion:
 
 chunking:
   chunk_size: 512
-  chunk_overlap: 51
+  chunk_overlap: 26
 
 vector_store:
   provider: chroma
@@ -24,13 +24,14 @@ retrieval:
   rerank: false   # true/false
 
 generation:
+  run_generation: false
   model_name: qwen2.5-1.5b-instruct
   max_new_tokens: 200
 
 evaluation:
   mode: retrieval              # retrieval or both
-  num_queries: 150          # 0-150
-  version_name: dense_512_10%_150q     
+  num_queries: 77          # 0:150 (for multiple) or 150 (single)
+  version_name: dense_newclr_512_5%_     
   commit_changes: false   # to test temporary code change: true/false
 
   metrics:

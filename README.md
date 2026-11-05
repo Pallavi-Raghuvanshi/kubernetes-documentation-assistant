@@ -224,6 +224,7 @@ Check the current source filenames before running individual stages, as the impl
 * [Domain-specific tokenizer vocabulary expansion](https://medium.com/@pierre_guillou/nlp-how-to-add-a-domain-specific-vocabulary-new-tokens-to-a-subword-tokenizer-already-trained-33ab15613a41)
 * [Sentence Transformers](https://www.sbert.net/)
 * [Hugging Face Transfo](https://huggingface.co/docs/transformers/index)
+* [ChromaDB Documentation](https://docs.trychroma.com/guides/build/intro-to-retrieval)
 
 ## 11. Regenerate records using git hash
 

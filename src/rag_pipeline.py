@@ -44,10 +44,10 @@ def load_retrieval_resources(config: dict):
     
 def run_pipeline(
     question: str,
+    gt_context: str, 
     config: dict,
     index=None,
     memory_monitor_factory=None,
-    run_generation: bool = True,
 ) -> dict:
 
     if index is None:
@@ -61,12 +61,12 @@ def run_pipeline(
 
     if retrieval_memory_monitor:
         retrieval_memory_monitor.start()
-
+    configs = load_config()
     retrieval_start = time.perf_counter()
-    retriever = config["retrieval"]["retriever"].lower()
-    top_k = config["retrieval"]["top_k"]
+    retriever = configs["retrieval"]["retriever"].lower()
+    top_k = configs["retrieval"]["top_k"]
 
-    rerank_enabled = config["retrieval"]["rerank"]
+    rerank_enabled = configs["retrieval"]["rerank"]
     reranker = None
 
     if rerank_enabled:
@@ -79,7 +79,7 @@ def run_pipeline(
             chunks=chunks,
             bm25=bm25,
             top_k=(
-                config["retrieval"].get("candidate_k", 100)
+                configs["retrieval"].get("candidate_k", 100)
                 if rerank_enabled
                 else top_k
             ),
@@ -88,12 +88,13 @@ def run_pipeline(
     elif retriever == "dense":
         collection, model = index
 
-        results, query_tokens = dense_search(
+        results, query_tokens, gt_context_tokens = dense_search(
             query=question,
+            gt_context=gt_context,
             collection=collection,
             model=model,
             top_k=(
-                config["retrieval"]["candidate_k"]
+                configs["retrieval"]["candidate_k"]
                 if rerank_enabled
                 else top_k
             ),
@@ -102,19 +103,19 @@ def run_pipeline(
     elif retriever == "hybrid":
         chunks, bm25, collection, model = index
 
-        results, query_tokens = hybrid_search(
+        results, query_tokens, gt_context_tokens = hybrid_search(
             query=question,
             chunks=chunks,
             bm25=bm25,
             collection=collection,
             model=model,
             top_k=(
-                config["retrieval"].get("candidate_k", 100)
+                configs["retrieval"].get("candidate_k", 100)
                 if rerank_enabled
                 else top_k
             ),
-            candidate_k=config["retrieval"].get("candidate_k", 100),
-            rrf_k=config["retrieval"].get("rrf_k", 60),
+            candidate_k=configs["retrieval"].get("candidate_k", 100),
+            rrf_k=configs["retrieval"].get("rrf_k", 60),
         )
 
     else:
@@ -148,11 +149,14 @@ def run_pipeline(
         )
 
     context = "\n\n".join(context_parts)
-
+    run_generation = config["generation"]["run_generation"]
+    #---------------------
+    # print(f'----------------------\nresults: {results}\n----------------------')
     if not run_generation:
         return {
             "results": results,
             "context": context,
+            "gt_context_tokens": gt_context_tokens,
             "generation_result": None,
             "retrieval_latency_seconds": retrieval_latency,
             "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
@@ -184,6 +188,7 @@ def run_pipeline(
     return {
         "results": results,
         "context": context,
+        "gt_context_tokens": gt_context_tokens,
         "generation_result": generation_result,
         "retrieval_latency_seconds": retrieval_latency,
         "retrieval_peak_memory_mb": retrieval_peak_memory_mb,
@@ -194,37 +199,34 @@ def run_pipeline(
 
 
 def main():
-    queries = get_queries()
+    queries, start, end = get_queries()
     config = load_config()
 
     # Limit queries using evaluation.num_queries.
-    num_queries = int(config.get("evaluation", {}).get("num_queries", 0))
     index = load_retrieval_resources(config)
 
     # Limit queries only when a positive limit is configured.
-    if num_queries > 0:
-        queries = queries[:num_queries]
-
     for query_item in queries:
         query_id = query_item["query_id"]
         question = query_item["query"]
 
         pipeline_result = run_pipeline(
             question=question,
+            gt_context=query_item["ground_truth_context"],
             config=config,
             index=index,
         )
-
-        results = pipeline_result["results"]
-        generation_result = pipeline_result["generation_result"]
-
         print(f"\n{'=' * 60}")
         print(f"Query ID: {query_id}")
         print(f"Question: {question}")
 
-        print("\n--- Answer ---")
-        print(generation_result["answer"])
-
+        results = pipeline_result["results"]
+        if config["generation"]["run_generation"]:  
+            generation_result = pipeline_result["generation_result"]
+            print("\n--- Answer ---")
+            print(generation_result["answer"])
+        else:
+            generation_result = None
         print("\n--- Retrieved Sources ---")
         seen_sources = set()
 
@@ -238,7 +240,13 @@ def main():
             f"Retrieval: "
             f"{pipeline_result['retrieval_latency_seconds']:.4f} seconds"
         )
-        print(
-            f"Generation: "
-            f"{generation_result['generation_latency_seconds']:.3f} seconds"
-        )
+        if generation_result is not None:
+            print(
+                f"Generation: "
+                f"{generation_result['generation_latency_seconds']:.3f} seconds"
+            )
+        else:
+            print(f"Generation: None")
+
+if __name__ == "__main__":
+    main()

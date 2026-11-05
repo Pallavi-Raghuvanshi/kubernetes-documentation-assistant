@@ -1,11 +1,13 @@
 # src/evaluation/evaluate2.py
 import json
 import re
-import subprocess
+import threading
 import time
 from pathlib import Path
-import sys
 import webbrowser
+from collections import Counter
+import subprocess
+import sys
 
 from src.rag_pipeline import run_pipeline, load_retrieval_resources
 
@@ -14,50 +16,64 @@ from src.evaluation.runner import run_metrics
 from src.evaluation.utils import average, round_metric, PeakMemoryMonitor
 
 from src.utils.helpers import load_config, get_queries
+from src.models.load_models import load_model
 
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_PATH = ROOT / "experiments" / "evaluation_results.json"
 
+# double-check locking pattern to ensure thread-safe lazy initialization of the model and tokenizer
+tokenizer = None
+model = None
+_model_lock = threading.Lock()
+    
+def get_model():
+    global tokenizer, model
+
+    if tokenizer is None or model is None:
+        with _model_lock:
+            if tokenizer is None or model is None:
+                tokenizer, model = load_model()
+
+    return tokenizer, model
 
 def calculate_text_proportion_metrics(
-    ground_truth_context: str,
+    gt_context_tokens: list[str],
     retrieved_results: list[dict],
     top_k: int,
-) -> dict[str, int | float | None]:
-    """
-    Matching is case-insensitive and based on exact text spans.
-    """
-    ground_truth = re.sub(r"\s+", " ", ground_truth_context).strip().lower() # \s -> whitespace characters
+) -> dict[str, float]:
 
-    retrieved_text = " ".join(result["text"] for result in retrieved_results[:top_k])
-    retrieved_text = re.sub(r"\s+", " ", retrieved_text).strip().lower()
+    remaining_gt_tokens = list(gt_context_tokens)
 
-    # Find the longest contiguous matching spans using SequenceMatcher.
-    from difflib import SequenceMatcher
+    retrieved_tokens = [
+        token
+        for result in retrieved_results[:top_k]
+        for token in result["chunk_tokens"]
+    ]
 
-    matcher = SequenceMatcher(
-        None,
-        ground_truth,
-        retrieved_text,
-        autojunk=False,
+    matching_tokens = 0
+
+    for token in retrieved_tokens:
+        if token in remaining_gt_tokens:
+            remaining_gt_tokens.remove(token)
+            matching_tokens += 1
+
+    total_gt_tokens = len(gt_context_tokens)
+    total_retrieved_tokens = len(retrieved_tokens)
+
+    reference_text_coverage = (
+        (total_gt_tokens - len(remaining_gt_tokens)) / total_gt_tokens
+        if total_gt_tokens else 0.0
     )
 
-    matching_characters = sum(
-        block.size for block in matcher.get_matching_blocks()
+    retrieved_text_relevance = (
+        matching_tokens / total_retrieved_tokens
+        if total_retrieved_tokens else 0.0
     )
 
     return {
-        "reference_text_coverage_at_k": (
-            matching_characters / len(ground_truth)
-            if ground_truth
-            else 0.0
-        ),
-        "retrieved_text_relevance_at_k": (
-            matching_characters / len(retrieved_text)
-            if retrieved_text
-            else 0.0
-        ),
+        "reference_text_coverage_at_k": reference_text_coverage,
+        "retrieved_text_relevance_at_k": retrieved_text_relevance,
     }
 
 def get_selected_metrics(
@@ -112,6 +128,21 @@ def summarize_metrics(
         for name, scores in values.items()
     }
 
+def calculate_chunk_relevance(
+    chunk_text: str,
+    ground_truth_context: str,
+) -> float:
+    """
+    Calculate the proportion of chunk tokens that overlap with the ground-truth context.
+    """
+    chunk_tokens = re.findall(r"\b\w+\b", chunk_text.lower())
+    ground_truth_tokens = set(re.findall(r"\b\w+\b", ground_truth_context.lower()))
+
+    if not chunk_tokens:
+        return 0.0
+
+    matching_tokens = sum(1 for token in chunk_tokens if token in ground_truth_tokens)
+    return matching_tokens / len(chunk_tokens)
 
 def main() -> None:
     # ---------------------------------------------------------
@@ -123,9 +154,7 @@ def main() -> None:
     retrieval_metric_names = get_selected_metrics(evaluation_config, "retrieval")
     generation_metric_names = get_selected_metrics(evaluation_config, "generation")
 
-    queries = get_queries()
-    num_queries = int(evaluation_config["num_queries"])
-    queries = queries[:num_queries]
+    queries, _, _= get_queries()
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -148,22 +177,24 @@ def main() -> None:
     # 3. Capture code version before evaluation
     # ---------------------------------------------------------
     version = evaluation_config["version_name"]
+    print(f"version before capture: {version}")
 
     query_output_dir = ROOT / "experiments" / "query_outputs"
     query_output_dir.mkdir(parents=True, exist_ok=True)
+
     query_output_path = query_output_dir / f"{version}.jsonl"
     query_output_path.write_text("", encoding="utf-8")
 
     print("Starting evaluation...")
-    print(f"Evaluation mode: {evaluation_config.get('mode', 'both')}")
+    print(f"Evaluation mode: {evaluation_config['mode']}")
     print(f"Queries selected: {len(queries)}")
     print(f"Version name: {version}")
 
     # ---------------------------------------------------------
     # 4. Read retrieval and generation configuration
     # ---------------------------------------------------------
-    retrieval_config = config.get("retrieval", {})
-    generation_config = config.get("generation", {})
+    retrieval_config = config["retrieval"]
+    generation_config = config["generation"]
 
     configured_top_k = int(retrieval_config["top_k"])
     max_new_tokens = int(generation_config["max_new_tokens"])
@@ -203,16 +234,14 @@ def main() -> None:
         # -----------------------------------------------------
         # 7. Evaluate each benchmark query
         # -----------------------------------------------------
-        for query_item in queries:
-            query_id = query_item["query_id"]
-            question = query_item["query"]
-
+        for query in queries:
+            query_id = query["query_id"]
+            question = query["query"]
             overall_start = time.perf_counter()
 
-            # Retrieval is needed if retrieval metrics are enabled.
-            # Generation mode also needs retrieval for the RAG answer.
             pipeline_result = run_pipeline(
                 question=question,
+                gt_context = query["ground_truth_context"],
                 config={
                     **config,
                     "retrieval": {
@@ -225,22 +254,28 @@ def main() -> None:
                     },
                 },
                 index=index,
-                memory_monitor_factory=PeakMemoryMonitor,
-                run_generation=bool(generation_metric_names),
+                memory_monitor_factory=PeakMemoryMonitor
             )
             results = pipeline_result["results"]
             retrieved_context = pipeline_result["context"]
+            gt_context_tokens = pipeline_result["gt_context_tokens"]
             generation_result = pipeline_result["generation_result"]
             query_tokens = pipeline_result["query_tokens"]
 
-            # Token-overlap evaluation against the reference documentation text.
-            # This does not use embedding similarity or chunk relevance labels.
-            ground_truth_context = str(query_item["ground_truth_context"])
+            ground_truth_context = str(query["ground_truth_context"])
             text_proportion_scores = calculate_text_proportion_metrics(
-                ground_truth_context=ground_truth_context,
+                gt_context_tokens=gt_context_tokens,
                 retrieved_results=results,
                 top_k=configured_top_k,
             )
+            # print("\n--- TEXT COVERAGE DEBUG ---")
+            # print("GT token count:", len(gt_context_tokens))
+            # print(
+            #     "Retrieved token count:",
+            #     sum(len(r["chunk_tokens"]) for r in results[:configured_top_k])
+            # )
+            # print("Calculated scores:", text_proportion_scores)
+            # print("---------------------------\n")
             coverage = text_proportion_scores["reference_text_coverage_at_k"]
             relevance = text_proportion_scores["retrieved_text_relevance_at_k"]
 
@@ -266,13 +301,13 @@ def main() -> None:
             # -------------------------------------------------
             # 8. Run configured retrieval metrics
             # -------------------------------------------------
-            if retrieval_metric_names and "relevant_chunks" in query_item:
+            if retrieval_metric_names and "relevant_chunks" in query:
                 # Preserve the existing chunk-relevance metrics for legacy query files.
                 retrieval_context = EvaluationContext(
                     query_id=query_id,
                     question=question,
                     retrieved_results=results,
-                    relevant_chunk_ids=set(query_item["relevant_chunks"]),
+                    relevant_chunk_ids=set(query["relevant_chunks"]),
                     top_k=configured_top_k,
                 )
 
@@ -307,7 +342,7 @@ def main() -> None:
                     query_id=query_id,
                     question=question,
                     answer=generation_result["answer"],
-                    reference_answer=query_item.get("ground_truth_answer", query_item.get("answer", "")),
+                    reference_answer=query.get("ground_truth_answer", query.get("answer", "")),
                     retrieved_context=retrieved_context,
                 )
 
@@ -332,7 +367,7 @@ def main() -> None:
                 print(f"{query_id}: retrieval={retrieval_latency:.4f}s")
 
             overall_latencies.append(time.perf_counter() - overall_start)
-            source_files = [str(query_item["source_file"])]
+            source_files = [str(query["source_file"])]
 
             # Save results for this query.
             query_record = {
@@ -341,9 +376,10 @@ def main() -> None:
                 "query_tokens": query_tokens,
 
                 "ground_truth_context": ground_truth_context,
-                "ground_truth_answer": query_item["ground_truth_answer"],
+                "gt_context_tokens": gt_context_tokens,
+                "ground_truth_answer": query["ground_truth_answer"],
 
-                "source_file": str(query_item["source_file"]),
+                "source_file": str(query["source_file"]),
 
                 "retrieval_latency_seconds": round(retrieval_latency, 6),
                 "retrieval_peak_memory_mb": pipeline_result["retrieval_peak_memory_mb"],
@@ -356,15 +392,15 @@ def main() -> None:
                 ],
 
                 "relevant_chunk_ranks": {
-                    item["chunk_id"]: rank
-                    for rank, item in enumerate(
-                        results[:configured_top_k],
-                        start=1
-                    )
-                    if item["text"].strip().lower()
-                    in query_item["ground_truth_context"].strip().lower()
+                    item["chunk_id"]: {
+                        "rank": rank,
+                        "relevance_score": calculate_chunk_relevance(
+                            chunk_text=item["text"],
+                            ground_truth_context=ground_truth_context,
+                        ),
+                    }
+                    for rank, item in enumerate(results[:configured_top_k], start=1)
                 },
-
                 "retrieved_results": results[:configured_top_k],
 
                 "generation": (
@@ -378,9 +414,7 @@ def main() -> None:
             }
 
             with query_output_path.open("a", encoding="utf-8") as output_file:
-                output_file.write(
-                    json.dumps(query_record, ensure_ascii=False, default=str) + "\n"
-                )
+                output_file.write(json.dumps(query_record, ensure_ascii=False, default=str) + "\n")
 
     finally:
         overall_peak_memory_mb = overall_memory_monitor.stop()
@@ -454,18 +488,33 @@ def main() -> None:
     print("Overall metrics   :", version_metrics["overall"])
     print(f"\nResults saved to          : {OUTPUT_PATH}")
     print(f"Per-query results saved to: {query_output_path}")
+
+    html_report_path = query_output_path.with_suffix(".html")
+    report_script = ROOT / "scripts" / "view_query_results.py"
+
     subprocess.run(
         [
             sys.executable,
-            "scripts/view_query_results.py",
+            str(report_script),
             "--input",
-            str(query_output_path),
+            str(query_output_path.resolve()),
+            "--output",
+            str(html_report_path.resolve()),
+        ],
+        check=True,
+        cwd=ROOT,
+    )
+
+    # Open in the currently active Edge window
+    subprocess.run(
+        [
+            "cmd",
+            "/c",
+            "start",
+            "msedge",
+            str(html_report_path.resolve()),
         ],
         check=True,
     )
-
-    html_report_path = query_output_path.with_suffix(".html")
-    webbrowser.open(html_report_path.resolve().as_uri())
-
 if __name__ == "__main__":
     main()

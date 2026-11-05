@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>RAG Query Results</title>
+
+<style>
+  :root {
+    color-scheme: dark;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #0b1120;
+    color: #e5e7eb;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    max-width: 1250px;
+    margin: 0 auto;
+    padding: 26px;
+    background: #0b1120;
+  }
+
+  h1 {
+    margin: 0 0 6px;
+    color: #60A5FA;
+  }
+
+  h3 {
+    margin-top: 26px;
+    color: #D6B878;
+    font-size: 1.05rem;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #374151;
+  }
+
+  h4 {
+    margin-bottom: 8px;
+    color: #34D399;
+  }
+
+  .subtitle,
+  .muted {
+    color: #94a3b8;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 22px 0;
+  }
+
+  button,
+  input {
+    font: inherit;
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #111c2f;
+    color: #e5e7eb;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #1e293b;
+  }
+
+  input {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  input::placeholder {
+    color: #94a3b8;
+  }
+
+  details.query {
+    background: #111827;
+    border: 1px solid #273449;
+    border-radius: 12px;
+    margin: 12px 0;
+    overflow: hidden;
+  }
+
+  details.query > summary {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    padding: 17px;
+    cursor: pointer;
+    background: #151f31;
+  }
+
+  details.query > summary:hover {
+    background: #1b2940;
+  }
+
+  .query-id {
+    font-weight: 700;
+    min-width: 90px;
+    color: #93c5fd;
+  }
+
+  .query-question {
+    overflow-wrap: anywhere;
+    color: #f1f5f9;
+  }
+
+  .query-body {
+    padding: 0 18px 22px;
+  }
+
+  .question {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #f1f5f9;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    background: #0b1220;
+    color: #dbeafe;
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid #263449;
+    font: 13px/1.6 Consolas, monospace;
+  }
+
+  .metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .metric {
+    background: #172338;
+    border: 1px solid #2b3a52;
+    padding: 11px 14px;
+    border-radius: 8px;
+    min-width: 180px;
+  }
+
+  .metric-name {
+    display: block;
+    color: #94a3b8;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .metric strong {
+    color: #f8fafc;
+    font-size: 16px;
+  }
+
+  .ground-truth {
+    overflow-wrap: anywhere;
+  }
+
+  .ground-truth pre {
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  details.chunk {
+    border: 1px solid #2b394e;
+    border-radius: 8px;
+    margin: 8px 0;
+    background: #0f1726;
+  }
+
+  details.chunk > summary {
+    cursor: pointer;
+    padding: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  details.chunk > summary:hover {
+    background: #172338;
+  }
+
+  .chunk-body {
+    padding: 0 12px 12px;
+  }
+
+  .rank,
+  .score {
+    color: #94a3b8;
+    font-size: 13px;
+  }
+
+  code {
+    color: #bfdbfe;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 650px) {
+    body {
+      padding: 12px;
+    }
+
+    details.query > summary {
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .metric {
+      width: 100%;
+    }
+  }
+  .tokens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px;
+      background: #0b1220;
+      border: 1px solid #263449;
+      border-radius: 8px;
+  }
+
+  .token {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #172338;
+      color: #93c5fd;
+      border: 1px solid #2b3a52;
+      border-radius: 5px;
+      font: 12px/1.5 Consolas, monospace;
+      overflow-wrap: anywhere;
+  }
+  .matched-token {
+      background: #14532d;
+      color: #86efac;
+      border-color: #22c55e;
+  }
+</style>
+</head>
+
+<body>
+  <h1>RAG Query Results</h1>
+
+  <p class="subtitle">
+    Source: C:\Users\palla\OneDrive\Desktop\Kubernetes RAG project\kubernetes_documentation_assistant\experiments\query_outputs\dense_newclr_512_10%_.jsonl · Queries: 1
+  </p>
+
+  <div class="toolbar">
+    <input
+      id="search"
+      type="search"
+      placeholder="Filter by query ID or question..."
+    >
+
+    <button type="button" id="expand">
+      Expand all
+    </button>
+
+    <button type="button" id="collapse">
+      Collapse all
+    </button>
+  </div>
+
+  <main id="queries">
+    
+    <details class="query" open>
+      <summary>
+        <span class="query-id">Q077</span>
+        <span class="query-question">How do I enforce Pod Security Standards in a namespace?</span>
+      </summary>
+
+      <div class="query-body">
+        <h3>Question</h3>
+        <p class="question">How do I enforce Pod Security Standards in a namespace?</p>
+
+        <h3>Ground-truth Answer</h3>
+        <pre>Label the namespace; the Pod Security admission controller enforces the privileged, baseline or restricted policy.</pre>
+
+        <h3>Ground-truth Context</h3>
+        <div class="ground-truth">
+          <pre>Enforce Pod Security Standards with Namespace Labels: Namespaces can be labeled to enforce the Pod Security Standards . The three policies privileged , baseline and restricted broadly cover the security spectrum
+and are implemented by the Pod Security admission controller .</pre>
+        </div>
+
+        <h3>Ground-truth Context Tokens (50)</h3>
+          <div class="tokens">
+            <span class="token ">enforce</span><span class="token ">pod</span><span class="token ">sec</span><span class="token ">uri</span><span class="token ">ty</span><span class="token ">standards</span><span class="token ">with</span><span class="token ">namespace</span><span class="token ">labels</span><span class="token ">:</span><span class="token ">namespaces</span><span class="token ">can</span><span class="token ">be</span><span class="token ">labeled</span><span class="token ">to</span><span class="token ">enforce</span><span class="token ">the</span><span class="token ">pod</span><span class="token ">sec</span><span class="token ">uri</span><span class="token ">ty</span><span class="token ">standards</span><span class="token ">.</span><span class="token ">the</span><span class="token ">three</span><span class="token ">policies</span><span class="token ">privileged</span><span class="token ">,</span><span class="token ">baseline</span><span class="token ">and</span><span class="token ">restricted</span><span class="token ">broadly</span><span class="token ">cover</span><span class="token ">the</span><span class="token ">sec</span><span class="token ">uri</span><span class="token ">ty</span><span class="token ">spectrum</span><span class="token ">and</span><span class="token ">are</span><span class="token ">implemented</span><span class="token ">by</span><span class="token ">the</span><span class="token ">pod</span><span class="token ">sec</span><span class="token ">uri</span><span class="token ">ty</span><span class="token ">admission</span><span class="token ">controller</span><span class="token ">.</span>
+          </div>
+
+        <h3>Text-Proportion Metrics</h3>
+        <div class="metrics">
+          <div class="metric"><span class="metric-name">Reference Text Coverage</span><strong>16.42%</strong></div><div class="metric"><span class="metric-name">Retrieved Text Relevance</span><strong>13.27%</strong></div>
+        </div>
+
+        <h3>Retrieved Chunks (20)</h3>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 1</span>
+            <strong>kubernetes_17027</strong>
+            <span class="score">Score: 0.8400</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_17027</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1702</span><span class="token ">##7</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 2</span>
+            <strong>kubernetes_18061</strong>
+            <span class="score">Score: 0.8359</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_18061</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1806</span><span class="token ">##1</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 3</span>
+            <strong>kubernetes_14908</strong>
+            <span class="score">Score: 0.8239</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_14908</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">149</span><span class="token ">##0</span><span class="token ">##8</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 4</span>
+            <strong>kubernetes_17015</strong>
+            <span class="score">Score: 0.8206</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_17015</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1701</span><span class="token ">##5</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 5</span>
+            <strong>kubernetes_17025</strong>
+            <span class="score">Score: 0.8198</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_17025</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1702</span><span class="token ">##5</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 6</span>
+            <strong>kubernetes_07113</strong>
+            <span class="score">Score: 0.8016</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_07113</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">07</span><span class="token ">##11</span><span class="token ">##3</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 7</span>
+            <strong>kubernetes_14994</strong>
+            <span class="score">Score: 0.7955</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_14994</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">149</span><span class="token ">##9</span><span class="token ">##4</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 8</span>
+            <strong>kubernetes_14907</strong>
+            <span class="score">Score: 0.7942</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_14907</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">149</span><span class="token ">##0</span><span class="token ">##7</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 9</span>
+            <strong>kubernetes_02789</strong>
+            <span class="score">Score: 0.7870</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_02789</pre>
+
+            <h4>Chunk tokens (6)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">02</span><span class="token ">##7</span><span class="token ">##8</span><span class="token ">##9</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 10</span>
+            <strong>kubernetes_18057</strong>
+            <span class="score">Score: 0.7824</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_18057</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1805</span><span class="token ">##7</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 11</span>
+            <strong>kubernetes_16047</strong>
+            <span class="score">Score: 0.7770</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_16047</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1604</span><span class="token ">##7</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 12</span>
+            <strong>kubernetes_16023</strong>
+            <span class="score">Score: 0.7625</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_16023</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">160</span><span class="token ">##23</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 13</span>
+            <strong>kubernetes_02786</strong>
+            <span class="score">Score: 0.7596</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_02786</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">02</span><span class="token ">##7</span><span class="token ">##86</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 14</span>
+            <strong>kubernetes_18055</strong>
+            <span class="score">Score: 0.7572</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_18055</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">1805</span><span class="token ">##5</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 15</span>
+            <strong>kubernetes_07114</strong>
+            <span class="score">Score: 0.7571</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_07114</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">07</span><span class="token ">##11</span><span class="token ">##4</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 16</span>
+            <strong>kubernetes_14909</strong>
+            <span class="score">Score: 0.7474</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_14909</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">149</span><span class="token ">##0</span><span class="token ">##9</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 17</span>
+            <strong>kubernetes_02787</strong>
+            <span class="score">Score: 0.7395</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_02787</pre>
+
+            <h4>Chunk tokens (6)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">02</span><span class="token ">##7</span><span class="token ">##8</span><span class="token ">##7</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 18</span>
+            <strong>kubernetes_00384</strong>
+            <span class="score">Score: 0.7387</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_00384</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">00</span><span class="token ">##38</span><span class="token ">##4</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 19</span>
+            <strong>kubernetes_14911</strong>
+            <span class="score">Score: 0.7357</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_14911</pre>
+
+            <h4>Chunk tokens (4)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">149</span><span class="token ">##11</span>
+            </div>
+          </div>
+        </details>
+        
+        <details class="chunk">
+          <summary>
+            <span class="rank">Rank 20</span>
+            <strong>kubernetes_02820</strong>
+            <span class="score">Score: 0.7340</span>
+          </summary>
+
+          <div class="chunk-body">
+            <h4>Chunk text</h4>
+            <pre>kubernetes_02820</pre>
+
+            <h4>Chunk tokens (5)</h4>
+            <div class="tokens">
+                <span class="token ">kubernetes</span><span class="token ">_</span><span class="token ">02</span><span class="token ">##8</span><span class="token ">##20</span>
+            </div>
+          </div>
+        </details>
+        
+
+      </div>
+    </details>
+    
+  </main>
+
+<script>
+  const queryCards = [
+    ...document.querySelectorAll("details.query")
+  ];
+
+  document.getElementById("search").addEventListener(
+    "input",
+    function () {
+      const term = this.value.toLowerCase();
+
+      queryCards.forEach(card => {
+        card.hidden = !card.innerText.toLowerCase().includes(term);
+      });
+    }
+  );
+
+  document.getElementById("expand").addEventListener(
+    "click",
+    () => {
+      queryCards.forEach(card => {
+        if (!card.hidden) {
+          card.open = true;
+        }
+      });
+    }
+  );
+
+  document.getElementById("collapse").addEventListener(
+    "click",
+    () => {
+      queryCards.forEach(card => {
+        card.open = false;
+      });
+    }
+  );
+</script>
+</body>
+</html>

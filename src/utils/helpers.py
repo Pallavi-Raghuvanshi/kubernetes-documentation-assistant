@@ -27,43 +27,17 @@ def load_config():
 
 def get_queries():
     query_path = Path("data/queries.csv")
-
-    if not query_path.exists():
-        raise FileNotFoundError(
-            f"Evaluation queries not found: {query_path.resolve()}"
-        )
+    config = load_config()
 
     with query_path.open("r", encoding="utf-8-sig", newline="") as file:
         reader = csv.DictReader(file)
         queries = list(reader)
-
-    # required_columns = {
-    #     "query_id",
-    #     "query",
-    #     "ground_truth_answer",
-    #     "source_file",
-    #     "ground_truth_context",
-    # }
-
-    # missing_columns = required_columns - set(reader.fieldnames or [])
-
-    # if missing_columns:
-    #     raise ValueError(
-    #         f"Missing columns in queries.csv: {sorted(missing_columns)}"
-    #     )
-
-    # if not queries:
-    #     raise ValueError("queries.csv contains no queries.")
-
-    # for row in queries:
-    #     for column in required_columns:
-    #         if not row[column] or not row[column].strip():
-    #             raise ValueError(
-    #                 f"Empty value in column '{column}' "
-    #                 f"for query {row.get('query_id')}"
-    #             )
-
-    return queries
+    num_queries = config["evaluation"]["num_queries"]
+    if ':' in str(num_queries):
+        start, end = map(int, num_queries.split(':', 1))
+    else:
+        start, end = int(num_queries) - 1, int(num_queries) 
+    return queries[start:end], start, end
 
 def load_chunks() -> list[dict]:
     chunks = []

@@ -1,17 +1,15 @@
-
+#src\models\load_models.py
 from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import yaml
 
+from src.utils.helpers import load_config
+
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / "configs.yaml"
-
-with CONFIG_PATH.open(encoding="utf-8") as file:
-    config = yaml.safe_load(file)
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-MODEL_DIR = ROOT_DIR/ "models"/ "weights"/ config["generation"]["model_name"]
+config = load_config()
+model_name = config["generation"]["model_name"]
+MODEL_DIR = ROOT / "models" / "weights" / model_name
 
 
 def load_model():
@@ -21,7 +19,7 @@ def load_model():
             "Run src/models/download_models.py first."
         )
 
-    print(f"Loading tokenizer from {MODEL_DIR}")
+    print(f"Loading tokenizer from models/weights/{model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(
         str(MODEL_DIR),
         local_files_only=True,
