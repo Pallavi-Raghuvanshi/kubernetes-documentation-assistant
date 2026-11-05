@@ -757,7 +757,9 @@ getting same metrics values in each run because of linear search.
   - updated:
   - - `src/embeddings/new_minilm_vocab_emb.py` -> embedding files now chosen automatically as per the config instead of using just one (~15 min)
     - ``scripts/vector_store/index_chroma.py`` -> embeddings chosen from respective files as per config (~0.5 min)
-    -  ``scripts/vector_store/verify_chroma.py``
+    - ``scripts/vector_store/verify_chroma.py``
+    
+ ![1793894194555](image/README/1793894194555.png)
+![alt text](image.png)
 
- ![alt text](image.png)
-![alt text](image-3.png)
+
