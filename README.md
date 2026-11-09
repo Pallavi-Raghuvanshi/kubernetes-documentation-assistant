@@ -1,263 +1,262 @@
-# Optimizing Retrieval Quality, Latency and Memory in Domain-Specific RAG Systems
+# RAG Frontier
 
-**Project objective:**
+**Engineering and evaluating retrieval-augmented generation systems.**
 
-Build a Kubernetes AI assistant grounded in documentation and identify the retrieval configuration that delivers the best measured relevance within practical CPU latency and memory constraints.
+RAG Frontier is an experimental, end-to-end RAG project for studying how ingestion, chunking, tokenization, embeddings, retrieval, reranking, and generation affect answer quality and system performance. Kubernetes documentation is the initial corpus, not the project boundary.
 
-### Key Features
+## Contents
 
-* Kubernetes documentation ingestion and chunking.
-* Sparse retrieval using BM25.
-* Dense semantic retrieval using MiniLM embeddings.
-* Hybrid retrieval using Reciprocal Rank Fusion (RRF).
-* Optional cross-encoder reranking.
-* Domain-specific tokenizer vocabulary expansion.
-* Evaluation using query-level relevance judgments.
-* Retrieval latency and memory profiling.
-* Planned experiments with alternative embedding models, vector indexes, and numerical precision.
+- [Pipeline](#pipeline)
+- [Implemented Components](#implemented-components)
+- [Retrieval Evaluation](#retrieval-evaluation)
+  - [Historical Retrieval Quality](#historical-retrieval-quality)
+  - [Historical Retrieval Latency](#historical-retrieval-latency)
+- [Domain-Specific Tokenizer and Embedding Experiments](#domain-specific-tokenizer-and-embedding-experiments)
+  - [Vocabulary Analysis](#vocabulary-analysis)
+  - [Vocabulary Expansion History](#vocabulary-expansion-history)
+  - [Retrieval Impact of Vocabulary Expansion](#retrieval-impact-of-vocabulary-expansion)
+  - [Runtime and Memory Impact](#runtime-and-memory-impact)
+- [Chunking Experiments and Data Consistency](#chunking-experiments-and-data-consistency)
+- [Generation and Evaluation Measurements](#generation-and-evaluation-measurements)
+  - [Recorded Generation Observations](#recorded-generation-observations)
+  - [Evaluation Coverage](#evaluation-coverage)
+- [Current Recorded Configuration](#current-recorded-configuration)
+- [Repository Areas](#repository-areas)
+- [Setup](#setup)
+- [References](#references)
 
-## 2. Experimental Progress
+## Pipeline
 
-| Stage | Experiment                         | Purpose                                                   |
-| ----- | ---------------------------------- | --------------------------------------------------------- |
-| 1     | BM25 sparse retrieval              | Establish a lexical retrieval baseline                    |
-| 2     | MiniLM dense retrieval             | Evaluate semantic retrieval                               |
-| 3     | Hybrid retrieval using RRF         | Combine lexical and semantic signals                      |
-| 4     | Cross-encoder reranking            | Test whether reranking improves result ordering           |
-| 5     | MiniLM vocabulary expansion        | Investigate domain-specific tokenization                  |
-| 6     | New-token embedding initialization | Initialize added tokens using original subword embeddings |
-| 7     | Fine-tuning expanded embeddings    | Planned investigation of retrieval-quality improvements   |
-
-## 3. Dataset and Model Statistics
-
-| Metric                                            | Observed value |
-| ------------------------------------------------- | -------------- |
-| Unique tokens extracted from corpus               | 20,775         |
-| Corpus chunks represented in the embedding matrix | 27,193         |
-| Embedding dimensions                              | 384            |
-| Embedding data type                               | FP32           |
-| Embedding matrix size                             | 27,193 × 384  |
-| Original MiniLM vocabulary                        | 30,522 tokens  |
-| Expanded vocabulary                               | 30,722 tokens  |
-| Additional tokens                                 | 200            |
-| New tokens initialized using subword means        | 194            |
-| New tokens not initialized using subword means    | 6              |
-| Evaluation queries in current benchmark           | 30             |
-
-The six tokens that could not be initialized using subword means were identified as large Base64-like strings associated with Mermaid diagram content. Their inclusion and treatment require further investigation.
-
-**Embedding storage:** The FP32 matrix contains 10,442,112 values, occupying approximately 39.8 MiB of raw numerical data, excluding metadata and other runtime allocations.
-
-## 4. Retrieval Benchmark Results
-
-The following results were calculated from the six supplied JSONL evaluation reports, each containing 30 queries.
-
-### Retrieval Quality
-
-| Retrieval configuration        | Recall@10        | Precision@10     | MRR              | Hit Rate@10      |
-| ------------------------------ | ---------------- | ---------------- | ---------------- | ---------------- |
-| **BM25 — No reranking** | **0.4194** | **0.1000** | **0.4722** | **0.6000** |
-| BM25 — Reranking              | 0.3417           | 0.0800           | 0.4431           | 0.6000           |
-| Dense — No reranking          | 0.2417           | 0.0600           | 0.3006           | 0.4333           |
-| Dense — Reranking             | 0.3083           | 0.0733           | 0.4409           | 0.5333           |
-| Hybrid — No reranking         | 0.3694           | 0.0867           | 0.4072           | 0.5667           |
-| Hybrid — Reranking            | 0.3250           | 0.0767           | 0.4336           | 0.5667           |
-
-**Metric definitions**
-
-* **Recall@10:** Fraction of relevant chunks retrieved within the top 10.
-* **Precision@10:** Fraction of the top 10 results that are relevant.
-* **MRR:** Mean reciprocal rank of the relevant chunk retrieved first.
-* **Hit Rate@10:** Fraction of queries with at least one relevant result in the top 10.
-
-*These results describe the supplied evaluation reports; they do not establish the cause of every performance difference. The reranking experiments must also be interpreted in light of candidate selection and reranker configuration.*
-
-### CPU Performance
-
-| Retrieval configuration | Mean latency (s) | p50 latency (s) | p95 latency (s) |
-| ----------------------- | ---------------- | --------------- | --------------- |
-| BM25 — No reranking    | 0.106            | 0.109           | 0.128           |
-| Dense — No reranking   | 0.015            | 0.010           | 0.017           |
-| Hybrid — No reranking  | 0.121            | 0.120           | 0.152           |
-| BM25 — Reranking       | 4.786            | 4.410           | 5.232           |
-| Dense — Reranking      | 9.392            | 9.526           | 10.727          |
-| Hybrid — Reranking     | 9.343            | 9.628           | 10.636          |
-
-*Latency statistics are calculated from the supplied reports. These are observed benchmark results, not guaranteed performance on other hardware. Reranking adds substantial latency in the current setup.*
-
-### Key Findings
-
-1. **BM25 is the strongest current baseline.** It achieved Recall@10 of 0.4194 and MRR of 0.4722 without reranking.
-2. **Dense retrieval is faster in the current measurements but has lower retrieval quality.** Its Recall@10 is 0.2417.
-3. **Hybrid retrieval did not outperform BM25.** Its Recall@10 of 0.3694 suggests that combining retrieval signals does not automatically improve relevance.
-4. **Reranking effects vary by retrieval strategy.** Dense retrieval's MRR improved from 0.3006 to 0.4409, while BM25's MRR decreased from 0.4722 to 0.4431.
-5. **Reranking has a substantial latency cost.** Further investigation is needed to determine whether its quality improvements justify the additional computation.
-6. **The tokenizer experiment remains an open research question.** Vocabulary expansion and embedding initialization have been implemented, but their retrieval-quality impact must be established through a controlled evaluation.
-
-## 5. Problems Encountered and Engineering Decisions
-
-| Problem                                                                    | Investigation or solution                                                                                                                    |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dense retrieval underperformed BM25                                        | Compared sparse, dense, and hybrid retrieval using the same 30 evaluation queries                                                            |
-| Hybrid retrieval did not consistently improve results                      | Evaluated RRF rather than assuming combined retrieval would be superior                                                                      |
-| Reranking increased latency substantially                                  | Benchmarked each retrieval strategy with and without reranking                                                                               |
-| Kubernetes terminology may be poorly represented by the original tokenizer | Analyzed keyword frequency and subword fragmentation to select candidate tokens                                                              |
-| Some candidate tokens appeared to be noisy strings                         | Identified Base64-like content, hashes, UUIDs, and IDs for further filtering                                                                 |
-| Added token embeddings needed initialization                               | Initialized 194 of 200 added tokens using mean original subword embeddings                                                                   |
-| Expanded tokenizer was not initially loaded correctly after saving         | Saved the expanded tokenizer at the SentenceTransformer root and Transformer subdirectory, then verified vocabulary and embedding dimensions |
-| Dense retrieval expected a model object but could receive a string         | Corrected the query-embedding call to use `<span>SentenceTransformer.encode()</span>`                                                      |
-| Different models require different document embeddings                     | Designed the evaluation to generate embeddings separately for each model                                                                     |
-| Evaluation results could be contaminated by training                       | Reserved the existing 30 evaluation queries and planned separate training query–positive-chunk pairs                                        |
-
-### Tokenizer Vocabulary Selection
-
-The keyword analysis produced the following observations:
-
-| Selection criterion                                      | Number of keywords |
-| -------------------------------------------------------- | ------------------ |
-| Total unique keywords analyzed                           | 5,864              |
-| Occurrences > 50                                         | 296                |
-| Occurrences > 80                                         | 183                |
-| Occurrences > 100                                        | 143                |
-| Subword count > 40                                       | 19                 |
-| Subword count > 30                                       | 33                 |
-| Subword count > 20                                       | 106                |
-| Overlap between occurrences > 100 and subword count > 20 | 0                  |
-
-The analysis identified frequently occurring terms and highly fragmented terms as distinct candidate groups. The expanded vocabulary was constructed from selected candidates in these groups.
-
-**Next step:** Compare original MiniLM, initialized MiniLM, and trained MiniLM using identical chunks, evaluation queries, relevance judgments, and retrieval settings.
-
-## 6. Evaluation Methodology
-
-The benchmark uses 30 evaluation queries with manually specified relevant chunk IDs.
-
-For controlled comparisons:
-
-* Keep the corpus and chunk boundaries fixed.
-* Keep evaluation queries and relevance judgments unchanged.
-* Generate document embeddings separately for every embedding model.
-* Encode each query using the corresponding model.
-* Use consistent retrieval cutoffs and metrics.
-* Disable reranking when isolating the effect of the embedding model.
-* Report aggregate and per-query results.
-* Record latency, memory consumption, and index size alongside quality.
-
-Training queries must remain separate from evaluation queries.
-
-## 7. Project Structure
-
-```
-rag_frontier/
-├── configs/
-│   └── corpus.yaml
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   ├── embeddings/
-│   └── training/
-├── models/
-│   ├── kubernetes_updated_tokenizer_vocab/
-│   └── kubernetes_minilm_initialized/
-├── indexes/
-├── src/
-│   ├── ingestion/
-│   ├── embeddings/
-│   ├── retrieval/
-│   ├── reranker/
-│   ├── evaluation/
-│   ├── generation/
-│   └── rag_pipeline.py
-├── experiments/
-│   └── query_outputs/
-├── reports/
-├── tests/
-├── scripts/
-├── queries.yaml
-├── configs.yaml
-├── requirements.txt
-└── README.md
+```text
+Documentation sources
+        │
+        ▼
+Fetch / crawl → HTML extraction → Cleaning → Chunking
+                                           │
+                    ┌──────────────────────┴───────────────────┐
+                    ▼                      ▼                  ▼
+                 BM25 index          Dense embeddings      Metadata
+                    └──────────────────────┬───────────────────┘
+                                           ▼
+                               Sparse / Dense / Hybrid
+                                           │
+                                  Optional reranker
+                                           │
+                                           ▼
+                                 Context construction
+                                           │
+                                           ▼
+                                    LLM generation
+                                           │
+                                           ▼
+                                Grounded answer + sources
+                                           │
+                                           ▼
+                               Retrieval / Generation evaluation
 ```
 
-## 8. Execution and Configuration
+## Implemented components
 
-Create and activate the environment on Windows:
+| Area | Implementation |
+|---|---|
+| Ingestion | Documentation fetching, URL crawling, source URL storage, HTML text extraction and cleaning |
+| Chunking | Configurable token-based chunking, overlap, validation and token inspection |
+| Sparse retrieval | BM25 retrieval with a persisted local index |
+| Dense retrieval | MiniLM sentence embeddings and persistent ChromaDB indexing |
+| Hybrid retrieval | Sparse and dense result fusion using Reciprocal Rank Fusion (RRF) |
+| Reranking | Optional cross-encoder reranker |
+| Tokenizer adaptation | Corpus keyword analysis, vocabulary expansion, noise filtering and new-token embedding initialization |
+| Evaluation | Retrieval quality, latency, memory, generation metrics and per-query HTML/JSONL reports |
+| Generation | Local Qwen 2.5 1.5B Instruct inference experiments; streaming measurements (TTFT/TPOT) |
 
+## Retrieval evaluation
+
+The initial evaluation used 30 queries with chunk-level relevance labels. The query set was later expanded to **150 queries across 5 categories (30 each)**. Relevance was changed to reference paragraph text rather than fixed chunk IDs, allowing the same queries to be reused across chunking configurations.
+
+The following six-report benchmark is the **historical 30-query baseline**, not the later 150-query evaluation.
+
+### Historical retrieval quality
+
+| Retrieval configuration | Recall@10 | Precision@10 | MRR | Hit Rate@10 |
+|---|---:|---:|---:|---:|
+| BM25 — no reranking | **0.4194** | **0.1000** | **0.4722** | **0.6000** |
+| BM25 — reranking | 0.3417 | 0.0800 | 0.4431 | 0.6000 |
+| Dense — no reranking | 0.2417 | 0.0600 | 0.3006 | 0.4333 |
+| Dense — reranking | 0.3083 | 0.0733 | 0.4409 | 0.5333 |
+| Hybrid — no reranking | 0.3694 | 0.0867 | 0.4072 | 0.5667 |
+| Hybrid — reranking | 0.3250 | 0.0767 | 0.4336 | 0.5667 |
+
+### Historical retrieval latency
+
+| Retrieval configuration | Mean (s) | p50 (s) | p95 (s) |
+|---|---:|---:|---:|
+| BM25 — no reranking | 0.106 | 0.109 | 0.128 |
+| Dense — no reranking | 0.015 | 0.010 | 0.017 |
+| Hybrid — no reranking | 0.121 | 0.120 | 0.152 |
+| BM25 — reranking | 4.786 | 4.410 | 5.232 |
+| Dense — reranking | 9.392 | 9.526 | 10.727 |
+| Hybrid — reranking | 9.343 | 9.628 | 10.636 |
+
+BM25 was the strongest quality baseline in this historical benchmark. Dense retrieval was fastest but had lower quality. Hybrid retrieval did not automatically outperform BM25, and reranking added substantial CPU latency.
+
+## Domain-specific tokenizer and embedding experiments
+
+The original MiniLM tokenizer vocabulary contained **30,522 tokens**. Corpus keyword frequency and subword fragmentation were analyzed to identify domain terms that were poorly represented by the original tokenizer. Candidate lists were filtered to remove generated identifiers, hashes, runtime-specific names and other noisy strings.
+
+### Vocabulary analysis
+
+| Analysis | Count |
+|---|---:|
+| Unique candidate keywords analyzed | 5,864 |
+| Keywords with frequency > 50 | 296 |
+| Keywords with frequency > 80 | 183 |
+| Keywords with frequency > 100 | 143 |
+| Keywords with > 40 subwords | 19 |
+| Keywords with > 30 subwords | 33 |
+| Keywords with > 20 subwords | 106 |
+| Keywords with frequency > 30 (later analysis) | 512 |
+| Keywords with frequency > 20 (later analysis) | 765 |
+| Keywords with frequency > 10 (later analysis) | 1,647 |
+| Keywords with > 15 subwords (later analysis) | 195 |
+| Keywords with > 10 subwords (later analysis) | 429 |
+| Keywords with > 3 subwords (later analysis) | 3,182 |
+
+### Vocabulary expansion history
+
+| Experiment | Added candidates | Removed as unwanted | Retained added tokens | Final vocabulary |
+|---|---:|---:|---:|---:|
+| Initial expansion | 200 | 6 failed tokens identified initially | 200 before later filtering | 30,722 |
+| Filtered expansion | 200 | 25 | 175 | 30,697 |
+| Later expansion | 993 candidates selected | 153 | 840 | 31,362 |
+
+New-token embeddings were initialized using the mean of the pretrained embeddings of each token's original subword components. The embedding dimension remained **384**. The expanded tokenizer and model were saved and used to regenerate document embeddings.
+
+### Retrieval impact of vocabulary expansion
+
+Results below are from the recorded 30-query experiments. The dense row distinguishes the earlier 196-token experiment from the later 840-token run.
+
+| Retrieval | Original Recall@k | Expanded Recall@k | Original Precision@k | Expanded Precision@k | Original MRR | Expanded MRR | Original Hit Rate@k | Expanded Hit Rate@k |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Dense — earlier expansion | 0.2417 | 0.4639 | 0.0300 | 0.0533 | 0.3006 | 0.3295 | 0.4333 | 0.6333 |
+| Dense — later 840-token run | 0.2417 | 0.4500 | 0.0300 | 0.0533 | 0.3006 | 0.3037 | 0.4333 | 0.6000 |
+| Hybrid — earlier expansion | 0.4694 | 0.5556 | 0.0550 | 0.0650 | 0.4128 | 0.4099 | 0.6333 | 0.7000 |
+| Hybrid — later 840-token run | 0.4694 | 0.5667 | 0.0550 | 0.0667 | 0.4128 | 0.4099 | 0.6333 | 0.7000 |
+| Sparse — vocabulary experiment | 0.4972 | 0.4972 | 0.0583 | 0.0583 | 0.4743 | 0.4743 | 0.6333 | 0.6333 |
+
+### Runtime and memory impact
+
+| Retrieval | Original latency (s) | Expanded latency (s) | Original peak memory (MB) | Expanded peak memory (MB) |
+|---|---:|---:|---:|---:|
+| Dense — earlier expansion | 0.0145 | 0.0884 | 546.375 | 544.9107 |
+| Dense — later 840-token run | 0.0145 | 0.1085 | 546.375 | 550.4783 |
+| Hybrid — earlier expansion | 0.1205 | 0.1799 | 695.020 | 695.7243 |
+| Sparse — earlier expansion | 0.1056 | 0.1107 | 503.521 | 503.5913 |
+
+Vocabulary expansion improved dense and hybrid retrieval in the recorded experiments, while sparse retrieval was unchanged because BM25 does not use the embedding tokenizer. Dense retrieval latency increased in these runs; results should be interpreted as experiment-specific rather than proof that larger vocabularies always improve retrieval.
+
+## Chunking experiments and data consistency
+
+For 512-token chunks, the following configurations were recorded:
+
+| Chunk size | Overlap | Overlap tokens | Chunk count | Recall@20 | Precision@20 | MRR | Hit Rate@20 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 512 | 25% | 128 | 27,193 | 0.4500 | 0.0533 | 0.3037 | 0.6000 |
+| 512 | 5% | 26 | 22,556 | 0.3000 | 0.0367 | 0.1370 | 0.4000 |
+| 512 | 10% | 51 | 23,477 | 0.3000 | 0.0367 | 0.1370 | 0.4000 |
+| 512 | 20% | 102 | 25,827 | Not recorded | Not recorded | Not recorded | Not recorded |
+
+
+A consistency issue occurred when chunks were regenerated but embeddings from the previous chunking configuration were reused: the new chunk count was **22,556**, while the old embedding set contained **27,193** rows.
+
+Whenever chunking changes, rebuild in this order:
+
+1. Generate chunks.
+2. Generate embeddings from those exact chunks.
+3. Rebuild the ChromaDB index from those embeddings.
+4. Verify that chunk, embedding and index record counts match.
+5. Run retrieval evaluation.
+
+Embedding-generation and indexing scripts were updated to select the configured embedding file, and a ChromaDB verification script was added.
+
+## Generation and evaluation measurements
+
+The local Qwen 2.5 1.5B Instruct model was explored for answer generation. Early CPU inference was slow and produced incomplete answers.
+
+### Recorded generation observations
+
+| Measurement | Recorded result |
+|---|---:|
+| Early single-query generation latency | 252.499 s |
+| Later observed generation time | Approximately 1 minute per query |
+| Early faithfulness score | 0.0000 |
+| Early answer completeness score | 0.0000 |
+| Early hallucination rate | 0.9333 |
+
+The log notes that weak generation results may reflect the local model, the small judge model, or evaluation interpretation. They require further validation.
+
+### Evaluation coverage
+
+| Evaluation area | Metrics / outputs |
+|---|---|
+| Retrieval quality | Recall@k, Precision@k, MRR, Hit Rate@k |
+| Runtime | Retrieval latency, generation latency, TTFT, TPOT, peak memory |
+| Generation quality | Faithfulness, hallucination rate, answer completeness |
+| Query inspection | Retrieved chunks, reference-context token comparison, per-query metrics |
+| Artifacts | JSONL query outputs and HTML reports |
+
+The latest logged run used **1 query** and reported retrieval-only measurements: retrieval latency **0.1038 s**, total measured time **0.1064 s**, peak memory approximately **564 MB**, reference text coverage **1.0**, and retrieved text relevance **0.0297**. This is a single-query diagnostic, not a full benchmark or generated-answer evaluation.
+
+## Current recorded configuration
+
+| Item | Recorded value |
+|---|---|
+| Initial corpus | Kubernetes documentation |
+| Dense model | `sentence-transformers/all-MiniLM-L6-v2` and expanded-vocabulary variant |
+| Original tokenizer vocabulary | 30,522 tokens |
+| Latest expanded tokenizer vocabulary | 31,362 tokens |
+| Added tokens retained | 840 |
+| Embedding dimension | 384 |
+| Latest logged chunk configuration | 512 tokens, 5% overlap (26 tokens) |
+| Latest matching chunk and embedding count | 22,556 |
+| Vector store | Persistent ChromaDB |
+| Hybrid fusion | Reciprocal Rank Fusion |
+| Optional reranker | Cross-encoder |
+| Evaluation query set | 150 queries, 5 categories |
+| Generation model explored | Qwen 2.5 1.5B Instruct |
+
+## Repository areas
+
+```text
+configs/       Corpus, retrieval, model, and experiment configuration
+data/          Raw and processed corpus, chunks, queries, embeddings, indexes
+docs/          Experiment and query-generation notes
+experiments/   Query outputs and experiment records
+models/        Downloaded and adapted model/tokenizer artifacts
+scripts/       Chunking, indexing, verification, and report utilities
+src/
+  ingestion/   Fetching, crawling, HTML extraction, chunking, validation
+  tokenization/Tokenizer utilities
+  embeddings/  Embedding generation and vocabulary experiments
+  retrieval/   BM25, dense, and hybrid retrieval
+  reranker/    Cross-encoder reranking
+  evaluation/  Retrieval and generation metrics
+  generation/  Local LLM inference and generation workflow
+  rag_pipeline.py
 ```
+
+## Setup
+
+```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-Configure the corpus in `<span>configs/corpus.yaml</span>` and retrieval settings in `<span>configs.yaml</span>`.
+Configure corpus and experiment settings before running the pipeline. Use the module and script names present in the current repository, as some original numbered scripts were later reorganized.
 
-The current workflow covers:
+## References
 
-1. Fetch and extract Kubernetes documentation.
-2. Chunk the corpus.
-3. Build the BM25 index.
-4. Generate dense embeddings.
-5. Run sparse, dense, or hybrid retrieval.
-6. Evaluate retrieval quality.
-7. Run tokenizer and embedding experiments.
-8. Compare quality, latency, and memory.
-9. Analyze per-query failures.
-
-Check the current source filenames before running individual stages, as the implementation has evolved beyond the original numbered scripts.
-
-## 9. Next Experiments
-
-| Priority | Experiment                                          | Objective                                                     |
-| -------- | --------------------------------------------------- | ------------------------------------------------------------- |
-| 1        | Evaluate original versus initialized MiniLM         | Measure the effect of vocabulary expansion                    |
-| 2        | Fine-tune added token embeddings                    | Determine whether training improves retrieval quality         |
-| 3        | Investigate failed queries                          | Identify terminology, chunking, or ranking failure patterns   |
-| 4        | Reassess reranking                                  | Improve the quality–latency trade-off                        |
-| 5        | Compare BGE and other embedding models              | Find stronger semantic retrieval candidates                   |
-| 6        | Compare FAISS Flat, HNSW, and IVF-Flat              | Evaluate indexing speed, search latency, and memory           |
-| 7        | Test FP32, FP16, and INT8                           | Measure precision and storage trade-offs where supported      |
-| 8        | Build a Pareto frontier                             | Identify configurations that satisfy CPU resource constraints |
-| 9        | Integrate the selected retriever into the assistant | Complete the Kubernetes RAG application                       |
-
-## 10. References
-
-* [Domain-specific tokenizer vocabulary expansion](https://medium.com/@pierre_guillou/nlp-how-to-add-a-domain-specific-vocabulary-new-tokens-to-a-subword-tokenizer-already-trained-33ab15613a41)
-* [Sentence Transformers](https://www.sbert.net/)
-* [Hugging Face Transfo](https://huggingface.co/docs/transformers/index)
-* [ChromaDB Documentation](https://docs.trychroma.com/guides/build/intro-to-retrieval)
-
-## 11. Regenerate records using git hash
-
-To Temporarily Switch your Workspace to a Commit
-
-```
-git switch --detach <commit-hash>
-```
-
-To go back to current directory
-
-```
-git switch -
-```
-
-to view hash of last commits
-
-```
-git rev-parse --short HEAD
-```
-
-## 12. Log entry format
-
-```Markdown
-# 30/10/26
-
-## Experiment: 
-
-- **Aim:** 
-- **Short Commit hash:**
-- **Files changed:**
-- **Results:**
-- **Inferences:**
-- **try:**
-- **study:**
-```
+- [Sentence Transformers](https://www.sbert.net/)
+- [Hugging Face Transformers](https://huggingface.co/docs/transformers/)
+- [ChromaDB documentation](https://docs.trychroma.com/)
+- [Domain-specific tokenizer vocabulary expansion](https://medium.com/@pierre_guillou/nlp-how-to-add-a-domain-specific-vocabulary-new-tokens-to-a-subword-tokenizer-already-trained-33ab15613a41)
