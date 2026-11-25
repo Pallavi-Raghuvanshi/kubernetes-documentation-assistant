@@ -124,12 +124,6 @@ def main() -> None:
             f"Expected a JSON object in {OUTPUT_PATH}."
         )
 
-    # ---------------------------------------------------------
-    # 3. Capture code version before evaluation
-    # ---------------------------------------------------------
-    commit_changes = bool(
-        evaluation_config.get("commit_changes", False)
-    )
     version = evaluation_config.get("version_name", "baseline")
 
     query_output_dir = ROOT / "experiments" / "query_outputs"

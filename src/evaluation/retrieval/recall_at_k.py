@@ -1,29 +1,24 @@
 # src/evaluation/retrieval/recall_at_k.py
 
+
 from src.evaluation.base import RetrievalMetric
+from src.evaluation.retrieval.evidence_utils import calculate_evidence_overlap
 
 
 class RecallAtK(RetrievalMetric):
-    """Calculate Recall@K for retrieved chunks."""
+    """Calculate ground-truth evidence coverage in the top K results."""
 
     name = "recall_at_k"
 
     def compute(self, context) -> float | None:
-        if not context.relevant_chunk_ids:
-            return None
-
         retrieved = context.retrieved_results[:context.top_k]
 
-        retrieved_ids = {
-            result["chunk_id"]
-            for result in retrieved
-        }
-
-        relevant_retrieved = (
-            retrieved_ids & context.relevant_chunk_ids
+        matched, total_gt, _ = calculate_evidence_overlap(
+            context.ground_truth_context,
+            retrieved,
         )
 
-        return (
-            len(relevant_retrieved)
-            / len(context.relevant_chunk_ids)
-        )
+        if total_gt == 0:
+            return None
+
+        return matched / total_gt

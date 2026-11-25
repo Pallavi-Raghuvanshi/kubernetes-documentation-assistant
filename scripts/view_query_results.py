@@ -11,19 +11,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from src.evaluation.evaluate2 import calculate_text_proportion_metrics
-
-def get_text_proportion_metrics(record: dict) -> dict:
-    """Calculate text-proportion metrics using evaluate2.py."""
-
-    gt_context_tokens = record["gt_context_tokens"]
-    retrieved_results = record["retrieved_results"]
-
-    return calculate_text_proportion_metrics(
-        gt_context_tokens=gt_context_tokens,
-        retrieved_results=retrieved_results,
-        top_k=len(retrieved_results),
-    )
 
 def format_metric(value: Any) -> str:
     """Format a metric as a percentage."""
@@ -120,23 +107,6 @@ def render_query(record: dict, index: int) -> str:
     for token in chunk["chunk_tokens"]
   }
 
-  # Read the character-based text-proportion metrics.
-  metrics = get_text_proportion_metrics(record)
-
-  metric_html = ""
-
-  for name, value in metrics.items():
-    display_value = format_metric(value)
-
-    metric_html += (
-      '<div class="metric">'
-      '<span class="metric-name">'
-      f"{esc(name)}"
-      "</span>"
-      f"<strong>{html.escape(display_value)}</strong>"
-      "</div>"
-    )
-
   # Display the ground-truth reference text.
   if ground_truth_text:
     ground_truth_html = f"<pre>{esc(ground_truth_text)}</pre>"
@@ -152,15 +122,21 @@ def render_query(record: dict, index: int) -> str:
   chunks_html = ""
 
   for rank, chunk in enumerate(retrieved, start=1):
-    #----------------
+    
     if not isinstance(chunk, dict):
       chunk = {"content": chunk}
 
     chunk_id = chunk["chunk_id"]
     score = chunk["score"]
+    evidence_similarity = chunk["evidence_similarity"]
 
     if isinstance(score, (int, float)):
       score = f"{score:.4f}"
+
+    if isinstance(evidence_similarity, (int, float)):
+        evidence_similarity = f"{evidence_similarity:.4f}"
+    else:
+        evidence_similarity = "N/A"
 
     content = chunk["text"]
     chunk_tokens = chunk["chunk_tokens"]
@@ -170,7 +146,8 @@ def render_query(record: dict, index: int) -> str:
       <summary>
         <span class="rank">Rank {rank}</span>
         <strong>{esc(chunk_id)}</strong>
-        <span class="score">Score: {esc(score)}</span>
+        <span class="score">Retrieval score: {esc(score)}</span>
+        <span class="score">Ground-truth token coverage: {esc(evidence_similarity)}</span>
       </summary>
 
       <div class="chunk-body">
@@ -238,14 +215,6 @@ def render_query(record: dict, index: int) -> str:
               )
             }
           </div>
-
-        <h3>Text-Proportion Metrics</h3>
-        <div class="metrics">
-          {
-              metric_html
-              or '<p class="muted">Text-proportion metrics unavailable.</p>'
-          }
-        </div>
 
         <h3>Retrieved Chunks ({len(retrieved)})</h3>
         {chunks_html}
@@ -634,7 +603,7 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    print(f"HTML report saved successfully: {output_path.resolve()}")
+    print(f"HTML report saved successfully: {output_path.resolve().relative_to(ROOT)}")
     print(f"Queries included: {len(records)}")
 
 if __name__ == "__main__":

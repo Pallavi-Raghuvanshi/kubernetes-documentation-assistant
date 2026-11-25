@@ -9,3 +9,4 @@ __pycache__/
 data/
 .pytest_cache
 updates.md
+experiments/query_outputs/

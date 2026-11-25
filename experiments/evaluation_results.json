@@ -600,5 +600,28 @@
       "latency_s": 0.1043,
       "peak_memory_mb": 564.19
     }
+  },
+  "parent_child_upd_eval": {
+    "query_count": 1,
+    "retrieval": {
+      "recall_at_k": 0.8947,
+      "precision_at_k": 0.0087,
+      "mrr": 1.0,
+      "hit_rate_at_k": 1.0,
+      "latency_s": 0.1757,
+      "peak_memory_mb": 601.35
+    },
+    "generation": {
+      "latency_s": null,
+      "ttft_s": null,
+      "tpot_ms": null,
+      "input_tokens_count": null,
+      "output_tokens_count": null,
+      "peak_memory_mb": null
+    },
+    "overall": {
+      "latency_s": 0.1987,
+      "peak_memory_mb": 601.7
+    }
   }
 }

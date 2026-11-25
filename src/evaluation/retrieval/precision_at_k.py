@@ -1,26 +1,25 @@
 # src/evaluation/retrieval/precision_at_k.py
 
 from src.evaluation.base import RetrievalMetric
+from src.evaluation.retrieval.evidence_utils import (
+    calculate_evidence_overlap,
+)
 
 
 class PrecisionAtK(RetrievalMetric):
-    """Calculate Precision@K for retrieved chunks."""
+    """Calculate the proportion of retrieved text supported by evidence."""
 
     name = "precision_at_k"
 
     def compute(self, context) -> float | None:
-        if not context.relevant_chunk_ids:
-            return None
-
         retrieved = context.retrieved_results[:context.top_k]
 
-        retrieved_ids = {
-            result["chunk_id"]
-            for result in retrieved
-        }
-
-        relevant_retrieved = (
-            retrieved_ids & context.relevant_chunk_ids
+        matched, _, total_retrieved = calculate_evidence_overlap(
+            context.ground_truth_context,
+            retrieved,
         )
 
-        return len(relevant_retrieved) / context.top_k
+        if total_retrieved == 0:
+            return None
+
+        return matched / total_retrieved

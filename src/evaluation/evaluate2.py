@@ -14,6 +14,7 @@ from src.rag_pipeline import run_pipeline, load_retrieval_resources
 from src.evaluation.evaluation_context import EvaluationContext
 from src.evaluation.runner import run_metrics
 from src.evaluation.utils import average, round_metric, PeakMemoryMonitor
+from src.evaluation.retrieval.evidence_utils import calculate_result_relevance, calculate_ground_truth_similarity
 
 from src.utils.helpers import load_config, get_queries
 from src.models.load_models import load_model
@@ -37,44 +38,6 @@ def get_model():
 
     return tokenizer, model
 
-def calculate_text_proportion_metrics(
-    gt_context_tokens: list[str],
-    retrieved_results: list[dict],
-    top_k: int,
-) -> dict[str, float]:
-
-    remaining_gt_tokens = list(gt_context_tokens)
-
-    retrieved_tokens = [
-        token
-        for result in retrieved_results[:top_k]
-        for token in result["chunk_tokens"]
-    ]
-
-    matching_tokens = 0
-
-    for token in retrieved_tokens:
-        if token in remaining_gt_tokens:
-            remaining_gt_tokens.remove(token)
-            matching_tokens += 1
-
-    total_gt_tokens = len(gt_context_tokens)
-    total_retrieved_tokens = len(retrieved_tokens)
-
-    reference_text_coverage = (
-        (total_gt_tokens - len(remaining_gt_tokens)) / total_gt_tokens
-        if total_gt_tokens else 0.0
-    )
-
-    retrieved_text_relevance = (
-        matching_tokens / total_retrieved_tokens
-        if total_retrieved_tokens else 0.0
-    )
-
-    return {
-        "reference_text_coverage_at_k": reference_text_coverage,
-        "retrieved_text_relevance_at_k": retrieved_text_relevance,
-    }
 
 def get_selected_metrics(
     evaluation_config: dict,
@@ -127,22 +90,6 @@ def summarize_metrics(
         name: round_metric(average(scores))
         for name, scores in values.items()
     }
-
-def calculate_chunk_relevance(
-    chunk_text: str,
-    ground_truth_context: str,
-) -> float:
-    """
-    Calculate the proportion of chunk tokens that overlap with the ground-truth context.
-    """
-    chunk_tokens = re.findall(r"\b\w+\b", chunk_text.lower())
-    ground_truth_tokens = set(re.findall(r"\b\w+\b", ground_truth_context.lower()))
-
-    if not chunk_tokens:
-        return 0.0
-
-    matching_tokens = sum(1 for token in chunk_tokens if token in ground_truth_tokens)
-    return matching_tokens / len(chunk_tokens)
 
 def main() -> None:
     # ---------------------------------------------------------
@@ -207,9 +154,6 @@ def main() -> None:
         "generation": {name: [] for name in generation_metric_names},
     }
 
-    reference_coverage_values = []
-    retrieved_relevance_values = []
-
     retrieval_latencies = []
     retrieval_peak_memory_values = []
     generation_peak_memory_values = []
@@ -263,11 +207,13 @@ def main() -> None:
             query_tokens = pipeline_result["query_tokens"]
 
             ground_truth_context = str(query["ground_truth_context"])
-            text_proportion_scores = calculate_text_proportion_metrics(
-                gt_context_tokens=gt_context_tokens,
-                retrieved_results=results,
-                top_k=configured_top_k,
-            )
+
+            for result in results:
+                result["evidence_similarity"] = calculate_ground_truth_similarity(
+                    ground_truth_context=ground_truth_context,
+                    retrieved_text=result["text"],
+                )
+
             # print("\n--- TEXT COVERAGE DEBUG ---")
             # print("GT token count:", len(gt_context_tokens))
             # print(
@@ -276,14 +222,6 @@ def main() -> None:
             # )
             # print("Calculated scores:", text_proportion_scores)
             # print("---------------------------\n")
-            coverage = text_proportion_scores["reference_text_coverage_at_k"]
-            relevance = text_proportion_scores["retrieved_text_relevance_at_k"]
-
-            if coverage is not None:
-                reference_coverage_values.append(coverage)
-
-            if relevance is not None:
-                retrieved_relevance_values.append(relevance)
 
             retrieval_latency = pipeline_result[
                 "retrieval_latency_seconds"
@@ -301,14 +239,18 @@ def main() -> None:
             # -------------------------------------------------
             # 8. Run configured retrieval metrics
             # -------------------------------------------------
-            if retrieval_metric_names and "relevant_chunks" in query:
-                # Preserve the existing chunk-relevance metrics for legacy query files.
+
+            if retrieval_metric_names and ground_truth_context.strip():
+
                 retrieval_context = EvaluationContext(
                     query_id=query_id,
                     question=question,
                     retrieved_results=results,
-                    relevant_chunk_ids=set(query["relevant_chunks"]),
+                    ground_truth_context=ground_truth_context,
                     top_k=configured_top_k,
+                    relevance_threshold=float(
+                        evaluation_config.get("relevance_threshold", 0.15)
+                    ),
                 )
 
                 retrieval_scores = run_configured_metrics(
@@ -384,8 +326,6 @@ def main() -> None:
                 "retrieval_latency_seconds": round(retrieval_latency, 6),
                 "retrieval_peak_memory_mb": pipeline_result["retrieval_peak_memory_mb"],
 
-                "text_proportions": text_proportion_scores,
-
                 "retrieved_chunk_ids": [
                     item["chunk_id"]
                     for item in results[:configured_top_k]
@@ -394,13 +334,21 @@ def main() -> None:
                 "relevant_chunk_ranks": {
                     item["chunk_id"]: {
                         "rank": rank,
-                        "relevance_score": calculate_chunk_relevance(
-                            chunk_text=item["text"],
+                        "relevance_score": calculate_result_relevance(
+                            result_text=item["text"],
                             ground_truth_context=ground_truth_context,
+                        ),
+                        "is_relevant": (
+                            calculate_result_relevance(
+                                result_text=item["text"],
+                                ground_truth_context=ground_truth_context,
+                            )
+                            >= float(evaluation_config.get("relevance_threshold", 0.15))
                         ),
                     }
                     for rank, item in enumerate(results[:configured_top_k], start=1)
                 },
+
                 "retrieved_results": results[:configured_top_k],
 
                 "generation": (
@@ -425,8 +373,6 @@ def main() -> None:
         "query_count": len(queries),
         "retrieval": {
             **summarize_metrics(metric_values["retrieval"]),
-            "reference_text_coverage_at_k": round_metric(average(reference_coverage_values)),
-            "retrieved_text_relevance_at_k": round_metric(average(retrieved_relevance_values)),
             "latency_s": round_metric(average(retrieval_latencies)),
             "peak_memory_mb": round_metric(
                 average([
@@ -491,8 +437,8 @@ def main() -> None:
     print("Retrieval metrics :", version_metrics["retrieval"])
     print("Generation metrics:", version_metrics["generation"])
     print("Overall metrics   :", version_metrics["overall"])
-    print(f"\nResults saved to          : {OUTPUT_PATH}")
-    print(f"Per-query results saved to: {query_output_path}")
+    print(f"\nResults saved to          : {OUTPUT_PATH.relative_to(ROOT)}")
+    print(f"Per-query results saved to: {query_output_path.relative_to(ROOT)}")
 
     html_report_path = query_output_path.with_suffix(".html")
     report_script = ROOT / "scripts" / "view_query_results.py"

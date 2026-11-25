@@ -38,8 +38,7 @@ generation:
 evaluation:
   mode: retrieval              # retrieval or both
   num_queries: 77          # 0:150 (for multiple) or 150 (single)
-  version_name: parent_child_retrieval     
-  commit_changes: false   # to test temporary code change: true/false
+  version_name: parent_child_upd_eval     
   save_result: false
 
   metrics:

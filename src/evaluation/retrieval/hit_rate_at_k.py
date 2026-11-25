@@ -1,21 +1,23 @@
 # src/evaluation/retrieval/hit_rate_at_k.py
+
 from src.evaluation.base import RetrievalMetric
+from src.evaluation.retrieval.evidence_utils import is_result_relevant
 
 
 class HitRateAtK(RetrievalMetric):
-    """Return 1 if any relevant chunk appears in the top K."""
+    """Return 1 if any evidence-relevant result appears in the top K."""
 
     name = "hit_rate_at_k"
 
     def compute(self, context) -> float | None:
-        if not context.relevant_chunk_ids:
+        if not context.ground_truth_context.strip():
             return None
 
         retrieved = context.retrieved_results[:context.top_k]
 
         return float(
             any(
-                result["chunk_id"] in context.relevant_chunk_ids
+                is_result_relevant(result, context)
                 for result in retrieved
             )
         )
