@@ -466,16 +466,21 @@ def main() -> None:
     # ---------------------------------------------------------
     # 11. Save results without deleting previous versions
     # ---------------------------------------------------------
-    saved_results[version] = version_metrics
+    save_permission = evaluation_config["save_result"]
+    if save_permission:
+        print('Saving result')
+        saved_results[version] = version_metrics
 
-    OUTPUT_PATH.write_text(
-        json.dumps(
-            saved_results,
-            indent=2,
-            ensure_ascii=False,
-        ) + "\n",
-        encoding="utf-8",
-    )
+        OUTPUT_PATH.write_text(
+            json.dumps(
+                saved_results,
+                indent=2,
+                ensure_ascii=False,
+            ) + "\n",
+            encoding="utf-8",
+        )
+    else:
+        print('not saving result')
 
     # ---------------------------------------------------------
     # 12. Print the evaluation summary
