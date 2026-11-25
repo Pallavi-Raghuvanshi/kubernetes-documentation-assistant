@@ -52,3 +52,55 @@ def load_chunks() -> list[dict]:
                 chunks.append(json.loads(line))
                 
     return chunks
+
+
+def load_jsonl(path: Path) -> list[dict]:
+    """Load JSONL records from a file."""
+
+    records = []
+
+    with path.open("r", encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                records.append(json.loads(line))
+
+    return records
+
+
+def load_parent_child_records() -> tuple[list[dict], list[dict]]:
+    """Load parent and child records using the current configuration."""
+
+    config = load_config()
+
+    settings = config["chunking"]["parent_child"]
+
+    parent_size = settings["parent_size"]
+    parent_overlap = settings["parent_overlap"]
+
+    child_size = settings["child_size"]
+    child_overlap = settings["child_overlap"]
+
+    parent_path = (
+        ROOT
+        / "data"
+        / "parent_child"
+        / f"parents_{parent_size}_{parent_overlap}.jsonl"
+    )
+
+    child_path = (
+        ROOT
+        / "data"
+        / "parent_child"
+        / f"children_{child_size}_{child_overlap}.jsonl"
+    )
+
+    if not parent_path.exists():
+        raise FileNotFoundError(parent_path)
+
+    if not child_path.exists():
+        raise FileNotFoundError(child_path)
+
+    parents = load_jsonl(parent_path)
+    children = load_jsonl(child_path)
+
+    return parents, children

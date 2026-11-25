@@ -9,6 +9,13 @@ ingestion:
 chunking:
   chunk_size: 512
   chunk_overlap: 26
+  parent_child:
+    parent_size: 256
+    parent_overlap: 20
+    parent_top_k: 20   # Number of unique parent chunks returned
+    child_size: 96
+    child_overlap: 12
+    child_top_k: 40    # Number of child chunks retrieved before parent mapping
 
 vector_store:
   provider: chroma
@@ -16,7 +23,7 @@ vector_store:
   batch_size: 500
 
 retrieval:
-  retriever: dense  # bm25, dense, hybrid
+  retriever: parent_child  # bm25, dense, hybrid, parent_child
   model: models/kubernetes_updated_minilm_initialized  # sentence-transformers/all-MiniLM-L6-v2 , models/kubernetes_updated_minilm_initialized
   top_k: 20
   candidate_k: 100  # chunks to be extracted from both sparse & dense retieval for hybrid retrieval
@@ -31,7 +38,7 @@ generation:
 evaluation:
   mode: retrieval              # retrieval or both
   num_queries: 77          # 0:150 (for multiple) or 150 (single)
-  version_name: dense_newclr_512_5%_repeat     
+  version_name: parent_child_retrieval     
   commit_changes: false   # to test temporary code change: true/false
   save_result: false
 

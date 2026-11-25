@@ -10,6 +10,10 @@ from src.retrieval.hybrid_retrieval_rrf import search as hybrid_search
 
 from src.reranker.cross_encoder import CrossEncoderReranker
 from src.utils.helpers import get_queries, load_config
+from src.retrieval.parent_child_retrieval import (
+    search as parent_child_search,
+    load_parent_child_index,
+)
 
 from src.retrieval.dense_retrieval_minilm import (
     search as dense_search,
@@ -38,6 +42,9 @@ def load_retrieval_resources(config: dict):
         model = SentenceTransformer(config["retrieval"]["model"])
 
         return chunks, bm25, collection, model
+
+    elif retriever == "parent_child":
+        return load_parent_child_index()
 
     else:
         raise ValueError(f"Unsupported retriever: {retriever}")
@@ -116,6 +123,25 @@ def run_pipeline(
             ),
             candidate_k=configs["retrieval"].get("candidate_k", 100),
             rrf_k=configs["retrieval"].get("rrf_k", 60),
+        )
+
+    elif retriever == "parent_child":
+        collection, model, parent_lookup = index
+
+        settings = config["chunking"]["parent_child"]
+
+        results, query_tokens, gt_context_tokens = parent_child_search(
+            query=question,
+            gt_context=gt_context,
+            collection=collection,
+            model=model,
+            parent_lookup=parent_lookup,
+            child_top_k=settings["child_top_k"],
+            parent_top_k=(
+                config["retrieval"].get("candidate_k", top_k)
+                if rerank_enabled
+                else top_k
+            ),
         )
 
     else:
