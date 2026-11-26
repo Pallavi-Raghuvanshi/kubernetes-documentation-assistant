@@ -5,12 +5,14 @@ import html
 import json
 from pathlib import Path
 from typing import Any
-
 import sys
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+from src.evaluation.retrieval.evidence_utils import tokenize_evidence # shared tokenizer
 
 def format_metric(value: Any) -> str:
     """Format a metric as a percentage."""
@@ -32,6 +34,28 @@ def esc(value: Any) -> str:
   return html.escape(pretty(value))
 
 
+def render_matching_tokens(text, start, length):
+    tokens = tokenize_evidence(text)
+
+    if not tokens:
+        return '<p class="muted">No tokens available.</p>'
+
+    token_html = []
+
+    for index, token in enumerate(tokens):
+        is_matched = (
+            start is not None
+            and start <= index < start + length
+        )
+
+        css_class = "token matched-token" if is_matched else "token"
+
+        token_html.append(
+            f'<span class="{css_class}">{esc(token)}</span>'
+        )
+
+    return '<div class="tokens">' + "".join(token_html) + '</div>'
+
 def pretty(value: Any) -> str:
   """Convert a value to a readable string."""
   if isinstance(value, (dict, list, tuple, set)):
@@ -43,7 +67,6 @@ def pretty(value: Any) -> str:
           ensure_ascii=False,
           default=str,
       )
-  # print(f".................pretty......................")
   return str(value)
 
 
@@ -83,7 +106,6 @@ def render_query(record: dict, index: int) -> str:
   # query_tokens = record["query_tokens"]
   # query_token_set = {token.lower() for token in query_tokens}
   gt_context_tokens = record["gt_context_tokens"]
-  gt_context_token_set = {token.lower() for token in gt_context_tokens}
   generation = record["generation"]
 
   if not isinstance(generation, dict):
@@ -100,13 +122,6 @@ def render_query(record: dict, index: int) -> str:
   if not isinstance(retrieved, list):
     retrieved = []
 
-  # Collect tokens appearing in the retrieved top-k chunks.
-  retrieved_token_set = {
-    token.lower()
-    for chunk in retrieved
-    for token in chunk["chunk_tokens"]
-  }
-
   # Display the ground-truth reference text.
   if ground_truth_text:
     ground_truth_html = f"<pre>{esc(ground_truth_text)}</pre>"
@@ -118,62 +133,113 @@ def render_query(record: dict, index: int) -> str:
       "</p>"
     )
 
-  # Render the retrieved chunks.
-  chunks_html = ""
+  def render_chunk_group(title, chunks):
 
-  for rank, chunk in enumerate(retrieved, start=1):
-    
-    if not isinstance(chunk, dict):
-      chunk = {"content": chunk}
+      if not chunks:
+          return f"<h3>{title}</h3><p class='muted'>No chunks found.</p>"
 
-    chunk_id = chunk["chunk_id"]
-    score = chunk["score"]
-    evidence_similarity = chunk["evidence_similarity"]
+      output = ""
 
-    if isinstance(score, (int, float)):
-      score = f"{score:.4f}"
+      for rank, chunk in enumerate(chunks, start=1):
 
-    if isinstance(evidence_similarity, (int, float)):
-        evidence_similarity = f"{evidence_similarity:.4f}"
-    else:
-        evidence_similarity = "N/A"
+          chunk_id = chunk["chunk_id"]
+          score = chunk.get("score", "N/A")
+          coverage = chunk.get("sequence_coverage", 0.0)
 
-    content = chunk["text"]
-    chunk_tokens = chunk["chunk_tokens"]
+          gt_start = chunk.get("ground_truth_start")
+          retrieved_start = chunk.get("retrieved_start")
+          match_length = chunk.get("longest_match", 0)
 
-    chunks_html += f"""
-    <details class="chunk">
-      <summary>
-        <span class="rank">Rank {rank}</span>
-        <strong>{esc(chunk_id)}</strong>
-        <span class="score">Retrieval score: {esc(score)}</span>
-        <span class="score">Ground-truth token coverage: {esc(evidence_similarity)}</span>
-      </summary>
+          print("\n" + "=" * 70)
+          print(f"CHUNK: {chunk.get('chunk_id')}")
 
-      <div class="chunk-body">
-        <h4>Chunk text</h4>
-        <pre>{esc(content)}</pre>
+          gt_tokens = tokenize_evidence(ground_truth_text)
+          retrieved_tokens = tokenize_evidence(chunk["text"])
 
-        <h4>Chunk tokens ({len(chunk_tokens)})</h4>
-        <div class="tokens">
-            {
-                "".join(
-                    f'<span class="token {"matched-token" if token.lower() in gt_context_token_set else ""}">'
-                    f'{esc(token)}</span>'
-                    for token in chunk_tokens
-                )
-            }
-        </div>
-      </div>
-    </details>
-    """
+          print("\nGROUND TRUTH TOKENS:")
+          print(gt_tokens)
 
-    if not chunks_html:
-        chunks_html = (
-            '<p class="muted">'
-            "No retrieved chunks found in this record."
-            "</p>"
-        )
+          print("\nRETRIEVED TOKENS:")
+          print(retrieved_tokens)
+
+          print("\nMATCHING SEQUENCE:")
+          print(chunk.get("matching_sequence"))
+
+          print("GT START:", gt_start)
+          print("RETRIEVED START:", retrieved_start)
+          print("MATCH LENGTH:", match_length)
+
+          if gt_start is not None:
+              print("GT HIGHLIGHT:", gt_tokens[gt_start:gt_start + match_length])
+
+          if retrieved_start is not None:
+              print(
+                  "RETRIEVED HIGHLIGHT:",
+                  retrieved_tokens[retrieved_start:retrieved_start + match_length]
+              )
+
+          print("=" * 70)
+
+          print("\nGROUND TRUTH:")
+          print(tokenize_evidence(ground_truth_text))
+
+          print("\nRETRIEVED:")
+          print(tokenize_evidence(chunk["text"]))
+
+          print("\nMATCHING SEQUENCE:")
+          print(chunk.get("matching_sequence"))
+
+          print("GT START:", gt_start)
+          print("RETRIEVED START:", retrieved_start)
+          print("MATCH LENGTH:", match_length)
+
+          ground_truth_html = render_matching_tokens(
+              ground_truth_text,
+              gt_start,
+              match_length,
+          )
+
+          retrieved_html = render_matching_tokens(
+              chunk["text"],
+              retrieved_start,
+              match_length,
+          )
+
+          output += f"""
+          <details class="chunk">
+            <summary>
+              <span class="rank">Rank {rank}</span>
+              <strong>{esc(chunk_id)}</strong>
+              <span class="score">
+                Retrieval score: {f"{float(score):.4f}"}
+              </span>
+              <span class="score">
+                Sequence coverage: {coverage:.4f}
+              </span>
+              <span class="score">
+                Longest match: {match_length} tokens
+              </span>
+            </summary>
+
+            <div class="chunk-body">
+              <h4>Ground-truth tokens</h4>
+              {ground_truth_html}
+
+              <h4>Retrieved chunk tokens</h4>
+              {retrieved_html}
+            </div>
+          </details>
+          """
+
+      return output
+
+
+  original_results = record.get("retrieved_results", [])
+
+  chunks_html = render_chunk_group(
+      "",
+      original_results,
+  )
 
   # Render the generated answer.
   if answer is not None:
@@ -204,17 +270,6 @@ def render_query(record: dict, index: int) -> str:
         <div class="ground-truth">
           {ground_truth_html}
         </div>
-
-        <h3>Ground-truth Context Tokens ({len(gt_context_tokens)})</h3>
-          <div class="tokens">
-            {
-              "".join(
-                  f'<span class="token {"matched-token" if token.lower() in retrieved_token_set else ""}">'
-                  f'{esc(token)}</span>'
-                  for token in gt_context_tokens
-              )
-            }
-          </div>
 
         <h3>Retrieved Chunks ({len(retrieved)})</h3>
         {chunks_html}

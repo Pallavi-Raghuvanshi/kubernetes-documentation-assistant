@@ -23,6 +23,7 @@ from src.retrieval.dense_retrieval_minilm import (
 def load_retrieval_resources(config: dict):
     """Load the resources required by the configured retriever."""
     retriever = config["retrieval"]["retriever"].lower()
+    gt_context_tokens = None
 
     if retriever == "bm25":
         return load_index()
@@ -68,12 +69,16 @@ def run_pipeline(
 
     if retrieval_memory_monitor:
         retrieval_memory_monitor.start()
-    configs = load_config()
+    
     retrieval_start = time.perf_counter()
-    retriever = configs["retrieval"]["retriever"].lower()
-    top_k = configs["retrieval"]["top_k"]
 
-    rerank_enabled = configs["retrieval"]["rerank"]
+    retrieval_config = config["retrieval"]
+
+    retriever = retrieval_config["retriever"].lower()
+    top_k = retrieval_config["top_k"]
+
+    rerank_enabled = retrieval_config["rerank"]
+
     reranker = None
 
     if rerank_enabled:
@@ -86,7 +91,7 @@ def run_pipeline(
             chunks=chunks,
             bm25=bm25,
             top_k=(
-                configs["retrieval"].get("candidate_k", 100)
+                retrieval_config.get("candidate_k", 100)
                 if rerank_enabled
                 else top_k
             ),
@@ -101,7 +106,7 @@ def run_pipeline(
             collection=collection,
             model=model,
             top_k=(
-                configs["retrieval"]["candidate_k"]
+                retrieval_config["candidate_k"]
                 if rerank_enabled
                 else top_k
             ),
@@ -117,12 +122,12 @@ def run_pipeline(
             collection=collection,
             model=model,
             top_k=(
-                configs["retrieval"].get("candidate_k", 100)
+                retrieval_config["candidate_k"]
                 if rerank_enabled
                 else top_k
             ),
-            candidate_k=configs["retrieval"].get("candidate_k", 100),
-            rrf_k=configs["retrieval"].get("rrf_k", 60),
+            candidate_k=retrieval_config["candidate_k"],
+            rrf_k=retrieval_config["rrf_k"],
         )
 
     elif retriever == "parent_child":

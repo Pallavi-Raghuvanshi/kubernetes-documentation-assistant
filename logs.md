@@ -14,36 +14,45 @@
      - ``configs/corpus.yaml``
      - `src/ingestion/____init____.py`
      - `src/ingestion/_1fetch_docs.py`
+
 2. ## Fetch documentation
 
    - python -m ``src.ingestion._1fetch_docs`` -> ``data/raw/kubernetes/index.html`` -> 500744 characters downloaded
+
 3. ## Extract text from HTML file
 
    - create ``src/ingestion/_2extract_text.py``
    - python -m ``src.ingestion._2extract_text`` -> 2084 characters extracted
+
 4. ## Token-based chunking
 
    - add tokenizer to ``configs/corpus.yaml``
    - create ``src/ingestion/_3chunk_text.py``
    - run python -m ``src.ingestion._3chunk_text``
+
 5. ## Expand Corpus
 
    - add more ``source_urls`` in ``configs/corpus.yaml``
+
 6. ## Validate Chunks
 
    - create ``src/ingestion/_4validate_chunks.py``
    - run ``python src/ingestion/_4validate_chunks.py``
+
 7. ## Add Evaluation Qs
 
    - Create ``configs/queries.yaml``
+
 8. ## BM25 retrieval
 
    - create ``src/retrieval/_5bm25_retriever.py``
    - run ``python src/retrieval/_5bm25_retriever.py`` -> results saved to ``experiments/bm25/results.jsonl``
+
 9. ## Evaluates the BM25 results using Recall@10, MRR, and Hit Rate
 
    - create ``src/evaluation/_6evaluate_retrieval.py``
    - run ``python src/evaluation/_6evaluate_retrieval.py``
+
 10. ## Push to Github
 
     - git add .
@@ -54,7 +63,6 @@
       git push -u origin main
 
     ## Pipeline:
-
 * HTML pages: downloaded 4 Kubernetes documentation pages.
 * Text extraction: We extracted their content into `.txt` files.
 * Chunking: We split the extracted text into 100 chunks, targeting 512 tokens with 128-token overlap.
@@ -66,20 +74,18 @@
 
 1. ## Added
 
-
    - comments
      - `src/ingestion/`_`2extract_text.py`
      - `src/ingestion/`_`3chunk_text.py`
      - `src/ingestion/`_`5bm25_retriever.py`
      - `src/ingestion/_6evaluate_retrieval.py`
    - Experimental Scope to `README.md`
-2. ## Created
 
+2. ## Created
 
    - `configs/retrieval.yaml`
 
    Pipeline:
-
 * HTML pages: downloaded 4 Kubernetes documentation pages.
 * Text extraction: We extracted their content into `.txt` files.
 * Chunking: We split the extracted text into 100 chunks, targeting 512 tokens with 128-token overlap.
@@ -98,9 +104,11 @@
    - run `python src\models\`_`7load_models.py`
    - `src/generation/_8llm_inference.py`                <- loads model for each query
    - run `python src.generation._8llm_inference`
+
 2. ## Update
 
    - `src.generation._8llm_inference` to load model and use for subsequent queries
+
 3. ## Created
 
    - `src.retrieval._5bm25_index.py`
@@ -108,14 +116,17 @@
    - run `python -m src.retrieval.test_bm25_index`
    - `src.generation.rag_pipeline.py`
    - run `python -m src.generation.rag_pipeline.py`
+
 4. ## Good achievement
 
    - *retrieval took only 0.0018 secs*: so BM25 not the bottleneck here
+
 5. ## Issues
 
    - *high latency*: generation took 252.499 seconds (~4 mins) to ans single query
    - *incomplete ans*: stops mid-sentence
    - *retrieved context includes multiple sources*: some maybe irrelevant to the query
+
 6. ## Solution
 
    - reduce *Generation cost*
@@ -133,7 +144,9 @@
    - code file
      - `src.utils.helpers.py` -> added `filename_from_url` and deleted this function from `1..py` and `2..py`
      - `src.evaluation.evaluate`
+
 2. ## Shifted all Rag configuration info to configs.yaml
+
 3. ## Built spider to scrape all URLs from Kubernetes official webpage
 
 ---
@@ -150,16 +163,18 @@
 # 19/10/26
 
 1. added precision@10 to evalution.py
+
 2. add run_pipeline() to do evaluation by simply calling `src.rag_pipeline.py`
+
 3. ## Document-level(URL) -> Chunk-level Retrieval evaluation
 
-
    - very low precision(0.07), though good recall(0.4667)
+
    - ### Workflow
 
      - added `relevant_chunk` to `queries.yaml` along with `query` and `answer`
-4. ## Added `faithfulness`, `hallucination_rate`, `answer_completeness` to generation metrics
 
+4. ## Added `faithfulness`, `hallucination_rate`, `answer_completeness` to generation metrics
 
    - created `src.evaluation.generation_metrics`
 
@@ -168,13 +183,13 @@
    - retrieval_latency <= 0.2 seconds
    - generation_latency <=1.5 seconds
 
-| Pipeline Stage                       | Target Baseline Value (ms)  | (s)   | Notes / Triggers                                                         |
-| ------------------------------------ | --------------------------- | ----- | ------------------------------------------------------------------------ |
-| **Query Embedding**            | **5 – 15**           | 0.015 | Time taken to convert user text into vectors.                            |
-| **Vector Index Retrieval**     | **10 – 150 ms**      | 0.15  | Vector database lookup (e.g., Pinecone, Qdrant, Milvus).                 |
-| **Reranking Stage**            | **30 – 100 ms**      | 0.1   | Optional but normal if using Cross-Encoders (e.g., Cohere).              |
-| **Time to First Token (TTFT)** | **100 – 300 ms**     | 0.3   | Measures how fast the user sees text start streaming.                    |
-| **LLM Generation**             | **1,000 – 1,500 ms** | 1.5   | Dominates ~80% of total latency; highly dependent on output token count. |
+| Pipeline Stage                 | Target Baseline Value (ms) | (s)   | Notes / Triggers                                                         |
+| ------------------------------ | -------------------------- | ----- | ------------------------------------------------------------------------ |
+| **Query Embedding**            | **5 – 15**                 | 0.015 | Time taken to convert user text into vectors.                            |
+| **Vector Index Retrieval**     | **10 – 150 ms**            | 0.15  | Vector database lookup (e.g., Pinecone, Qdrant, Milvus).                 |
+| **Reranking Stage**            | **30 – 100 ms**            | 0.1   | Optional but normal if using Cross-Encoders (e.g., Cohere).              |
+| **Time to First Token (TTFT)** | **100 – 300 ms**           | 0.3   | Measures how fast the user sees text start streaming.                    |
+| **LLM Generation**             | **1,000 – 1,500 ms**       | 1.5   | Dominates ~80% of total latency; highly dependent on output token count. |
 
 ---
 
@@ -184,15 +199,15 @@
 
    * earlier -> created the index for the whole doc each time `__4bm25_index.py`  was executed
    * and saved it temporarily in memory
+
 2. ## Separated metrics in `src.evaluation.evaluate.py` into:  -> implement *separation of concerns*
-
 - `src.evaluation.retrieval_metrics.py`
 - `src.evaluation.retrieval_metrics.py`
-
 3. ## Updated:
 
    - `rag_pipeline.py`
    - `evaluate.py`
+
 4. ## Issues
 
    - retrieval quality poor: no relevant chunk in top_k for query_001
@@ -209,10 +224,11 @@
      Chunk: kubernetes_08039
      BM25 score: 7.2808
 
-
      - BM25 rank: 2055 / 27193
      - Matched query tokens: ['priority', 'request']
+
    - ~6 seconds to load model weights into memory on executing `evaluate.py`
+
 5. ## Separated Tokenizer into `src.tokenization.tokenization.py`
 
 ---
@@ -221,17 +237,16 @@
 
 1. ## Applied Open/Closed Principle of SOLID Principles on Evaluation
 
-
    - created:
      - `src/evaluation/evaluation_context.py`
      - `src/evaluation/base.py`
      - `src/evaluation/registry.py`
      - `src/evaluation/generation/`     <- separate folders for generation and retrieval metrics
      - `src/evaluation/retrieval/`
+
 2. ## Baseline measurements:
 
    ### Retrieval
-
 
    - *hit rate of 0.60* : 60% of queries retrieved at least one relevant chunk within the evaluation cutoff
    - *Recall of 0.4194* : many labeled relevant chunks were not retrieved.
@@ -248,26 +263,26 @@
    - Genuine judge scores
    - weakness of small judge model
    - problem in how response is interpreted
-3. ## Added
 
+3. ## Added
 
    - TTFT & TPOT
      - `from transformers import TextIteratorStreamer` imports a utility class from the **Hugging Face `transformers` library** used to **stream text in real time** as a Large Language Model (LLM) generates it
    - Utility functions in `src/evaluation/utils.py`
      - earlier used from cache
      - `average`, `round_metric`, `PeakMemoryMonitor`, and `evaluate_retrieval`
-4. ## Issues
 
+4. ## Issues
 
    - Retrieval quality
    - Generation quality
    - CPU inference performance
+
 5. ## Solution
 
-
    - Use ***D**ense Retrieval*
-6. ## Created
 
+6. ## Created
 
    - `src/embeddings/embeddings.py`  -> `data/embeddings/kubernetes_minilm_embeddings.npy`  <- Embedding shape: (27193, 384)
    - `src/retrieval/dense_retrieval.py`
@@ -283,13 +298,16 @@
      - `src/rag_pipeline.py`
      - `src/evaluation/evaluate.py`
      - `configs.yaml`
+
 2. ## updated
 
    - added model names to retrieval file names
+
 3. ## Added ReRanker
 
    - created
      - `src/reranker/cross_encoder.py`
+
 4. ## Added `scripts/view_query_results.py` to show per query metrics on browser
 
 ---
@@ -301,6 +319,7 @@
    - dense retrieval
    - hybrid retrieval
    - reranking
+
 2. ## Added
 
    - in `src/utils/helpers.py`
@@ -308,6 +327,7 @@
      - `load_config()`
      - `load_chunks()`
      - `get_queries()`
+
 3. ## `sentence-transformers/all-MiniLM-L6-v2`
 
    - `all` : trained on all available datasets i.e. model is 'all-rounder'
@@ -333,21 +353,25 @@
   APIService                     -> ['api', '##ser', '##vic', '##e']
   API Priority and Fairness      -> ['api', 'priority', 'and', 'fairness']
   ```
+
 - `src/embeddings/extract_keywords.py`   ->  `data/candidate_keywords.txt`
+
 - `src/embeddings/rank_keywords.py`   -> `data/kubernetes/ 3 .py files`
+
 - `src/embeddings/analyze_keyword_counts.py`
 
   ```
   Total keywords analyzed: 5864
-
+  
   Keywords with frequency > 50: 296
   Keywords with frequency > 80: 183
   Keywords with frequency > 100: 143
-
+  
   Keywords with > 40 subwords: 19
   Keywords with > 30 subwords: 33
   Keywords with > 20 subwords: 106
   ```
+
 - `src/embeddings/update_minilm_emb_vocab/add_tokens_to_vocab.py`   ->  `models\kubernetes_tokenizer_updated_vocab `
 
   ```
@@ -355,7 +379,9 @@
   Failed tokens: 6 : not legitimate Kubernetes vocabulary, 
              instead artifacts: data errors, noise, or junk formatting that accidentally got pulled along with the clean data.
   ```
+
 - Renamed:  `src/embeddings/embeddings.py`  ->  `src/embeddings/original_vocab_embeddings.py`
+
 - `src/embeddings/new_minilm_vocab_embeddings.py`
 
   ```
@@ -400,9 +426,11 @@ Embedding shape: (27193, 384) : (chunks, each embedding length)
   - ``src/embeddings/update_minilm_emb_vocab/add_tokens_to_vocab.py`` : tokenizer-building script
   - `src/embeddings/train_new_minilm_token_emb/initialize_new_token_emb.py` : initialization script
   - `src/embeddings/new_minilm_vocab_embeddings.py` : embedding-generation script
+
 - ### ran
 
   - Step 1: Add tokens to the tokenizer vocabulary:  `python -m src.embeddings.update_minilm_emb_vocab.add_tokens_to_vocab`
+
   - Step 2: Initialize the new token embeddings:  `python -m src.embeddings.train_new_minilm_token_emb.initialize_new_token_emb` -> `data\embeddings\kubernetes_minilm_initialized_embeddings.npy`
 
     ```
@@ -412,6 +440,7 @@ Embedding shape: (27193, 384) : (chunks, each embedding length)
     Batches: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 425/425 [38:16<00:00,  5.40s/it]
     Embedding shape: (27193, 384)
     ```
+
 - ### failed to build proper condition to remove all `generated identifiers`, `runtime-specific resource names`, or `encoded/container-ID artifacts`
 
   - in ``python -m src.embeddings.update_minilm_emb_vocab.add_tokens_to_vocab``
@@ -425,13 +454,14 @@ Embedding shape: (27193, 384) : (chunks, each embedding length)
       Tokens to retain: 175
       Final vocabulary size: 30697
       ```
+
     - #### again initialized new token embeddings:
 
       `python -m src.embeddings.train_new_minilm_token_emb.initialize_new_token_emb` -> `data\embeddings\kubernetes_minilm_initialized_embeddings.npy`
+
     - #### updated MiniLM embeddings
 
       `python -m src.embeddings.new_minilm_vocab_emb`  ->  `data\embeddings\kubernetes_minilm_initialized_embeddings.npy`
-
 
       ```
       Sentence embedding dimension: 384
@@ -504,6 +534,7 @@ Keywords with > 3 subwords: 3182
 - choose: 500 words form both categories in ``src.embeddings.update_minilm_emb_vocab.add_tokens_to_vocab``
 - ran:
   - `python -m src.embeddings.update_minilm_emb_vocab.add_tokens_to_vocab`  ->  `models\kubernetes_upd_tokenizer_vocab`
+
   - `python -m  src.embeddings.update_minilm_emb_vocab.remove_unwanted_tokens`  ->   `models\kubernetes_upd_tokenizer_vocab`
 
     ```
@@ -511,10 +542,12 @@ Keywords with > 3 subwords: 3182
     Final vocabulary size: 31362
     Retained added tokens: 840
     ```
+
   - `python -m src.embeddings.train_new_minilm_token_emb.initialize_new_token_emb`
 
     - Model saved to: `C:\Users\palla\OneDrive\Desktop\Kubernetes RAG project\kubernetes_documentation_assistant\models\kubernetes_updated_minilm_initialized`
     - Metadata saved to: `C:\Users\palla\OneDrive\Desktop\Kubernetes RAG project\kubernetes_documentation_assistant\models\kubernetes_updated_minilm_initialized\initialization_metadata.json`
+
   - `python -m src.embeddings.new_minilm_vocab_emb`
 
 ## Result of adding 840 words to vocab
@@ -544,7 +577,9 @@ getting same metrics values in each run because of linear search.
 ## 2. Embedding storage: numpy array -> ChromaDB
 
 - brute-force linear search  ->  Approximate Nearest Neighbor (ANN) search
+
 - create:  `src/vector_store/index_chroma.py`
+
 - run: `python -m src.vector_store.index_chroma`  ->  `data\chroma_db`
 
   ```
@@ -552,6 +587,7 @@ getting same metrics values in each run because of linear search.
   Database location: C:\Users\palla\OneDrive\Desktop\Kubernetes RAG project\kubernetes_documentation_assistant\data\chroma_db
   Execution time: 12.30 seconds
   ```
+
 - updated:
 
   - `src/retrieval/dense_retrieval_minilm.py` to load embeddings form chromadb
@@ -559,11 +595,11 @@ getting same metrics values in each run because of linear search.
 
   ### Dense
 
-
   - latency_s                 :  0.0145  -> 0.0884       ->  0.1085     ->  0.046
   - peak_memory_mb :  546.375  -> 544.9107  ->  550.4783  ->  576.341
 
   latency decreased by 57.6% & peak memory increased by only 4.7%, so wil use chroma
+
 - ChromaDB uses more memory since it maintains additional data structures to support **indexed vector search, persistent storage, and document management**
 
 ---
@@ -583,10 +619,13 @@ getting same metrics values in each run because of linear search.
 ## Experiment: 001
 
 - **Aim:** change similarity search: cosine -> euclidean distance (l2) in `src\vector_store\index_chroma.py`
+
 - **Short Commit hash**: 92fbb96
+
 - **Files changed**:
 
   - `src\vector_store\index_chroma.py`
+
 - **Results:**
 
   - ```
@@ -601,10 +640,12 @@ getting same metrics values in each run because of linear search.
 
       - latency_s                 :  0.0145  -> 0.0884       ->  0.1085      ->  0.046      ->  0.0378
       - peak_memory_mb  :  546.375  -> 544.9107  ->  550.4783  ->  576.341  ->  576.2767
+
     - 2nd run
 
       - latency_s                 :  0.0145  -> 0.0884       ->  0.1085      ->  0.046      ->  0.0378  ->  0.0349 -> 0.0217
       - peak_memory_mb  :  546.375  -> 544.9107  ->  550.4783  ->  576.341  ->  576.2767  ->  575.8413 -> 576.0443
+
 - **Inferences:**
 
   - latency reduction by similarity search in chromadb: 57.6% (`cosine`) < 65.16% (`l2`) < 80% (`ip`) -> l2 similarity search produces faster retrievals
@@ -612,7 +653,9 @@ getting same metrics values in each run because of linear search.
   - Peak memory was broadly similar between the two L2 runs, with a small decrease in the second run.
   - `ip` similarity search is best for normalized embedding vectors
   - ====
+
 - removed `git_commit` from `evaluation_results.py`
+
 - **try:**
 
   - Elevate Context with Structural Strategies
@@ -632,6 +675,7 @@ getting same metrics values in each run because of linear search.
       * Troubleshooting questions: `Why is my Pod stuck in Pending?`
       * Multi-concept questions involving multiple Kubernetes resources.
   - LoRA
+
 - study:
 
   - rrf
@@ -651,31 +695,33 @@ getting same metrics values in each run because of linear search.
 ## Exp002: `dense_chroma_ip`
 
 * **Aim:** Evaluate Retrieval Recall for different chunk sizes and overlapping ratios
-
 - **Short Commit hash:**
+
 - **Files modified:**
 
   - `configs.yaml` :
     - `chunk_size`and `chunk_overlap`in `chunking`
     - `version_name` in `evaluation`
+
 - **Files executed (for each experiment):**
 
   - `python -m scripts.chunking.chunk_html_text`
   - `python -m scripts.vector_store.index_chroma`
   - `src\evaluation\evaluate.py`
+
 - **Results:**
 
 | Exp      | Chunk size (tokens) | Overlap ratio | Overlap (tokens) | Total chunks | recall_at_20 | precision_at_20 | mrr_at_20 | hit_rate_at_20 | latency_s | peak_memory_mb |
-| -------- | ------------------: | ------------: | ---------------: | ------------ | -----------: | --------------: | --------: | -------------: | --------: | -------------: |
-| Baseline |                 512 |           25% |              128 | 27193        |         0.45 |          0.0533 |    0.3037 |            0.6 |    0.0217 |       576.0443 |
-| 1        |                 512 |            5% |               26 | 22556        |          0.3 |          0.0367 |     0.137 |            0.4 |    0.0265 |       568.9237 |
-| 2        |                 512 |           10% |               51 | 23477        |          0.3 |          0.0367 |     0.137 |            0.4 |    0.0287 |         571.83 |
-| 3        |                 512 |           20% |              102 | 25827        |           — |              — |        — |             — |        — |             — |
-| 3        |                 256 |            0% |                0 |              |           — |              — |        — |             — |        — |             — |
-| 4        |                 256 |           10% |               26 |              |              |                 |           |                |           |                |
-| 5        |                 256 |           20% |               51 |              |              |                 |           |                |           |                |
-| 6        |                1024 |           10% |              102 |              |           — |              — |        — |             — |        — |             — |
-| 7        |                1024 |           20% |              205 |              |           — |              — |        — |             — |        — |             — |
+| -------- | -------------------:| -------------:| ----------------:| ------------ | ------------:| ---------------:| ---------:| --------------:| ---------:| --------------:|
+| Baseline | 512                 | 25%           | 128              | 27193        | 0.45         | 0.0533          | 0.3037    | 0.6            | 0.0217    | 576.0443       |
+| 1        | 512                 | 5%            | 26               | 22556        | 0.3          | 0.0367          | 0.137     | 0.4            | 0.0265    | 568.9237       |
+| 2        | 512                 | 10%           | 51               | 23477        | 0.3          | 0.0367          | 0.137     | 0.4            | 0.0287    | 571.83         |
+| 3        | 512                 | 20%           | 102              | 25827        | —            | —               | —         | —              | —         | —              |
+| 3        | 256                 | 0%            | 0                |              | —            | —               | —         | —              | —         | —              |
+| 4        | 256                 | 10%           | 26               |              |              |                 |           |                |           |                |
+| 5        | 256                 | 20%           | 51               |              |              |                 |           |                |           |                |
+| 6        | 1024                | 10%           | 102              |              | —            | —               | —         | —              | —         | —              |
+| 7        | 1024                | 20%           | 205              |              | —            | —               | —         | —              | —         | —              |
 
 ## 2. check why chunks retrieved have so less tokens.
 
@@ -702,37 +748,42 @@ getting same metrics values in each run because of linear search.
 
    ![1793538872658](image/logs/1793538872658.png)
 
-
    - ### Issue:
 
-
      - whether `Generated Answer` shown after all `Retrieved Chunks` is generated in current run, or previously genreated answers are shown.
+
      - ### Reviewed code files
 
        - `src\models\load_models.py`
 
          - `data\chunks\chunks_512_51.jsonl`
          - `data\queries.csv`
+
        - `src\retrieval\dense_retrieval_minilm.py`
+
        - `src\rag_pipeline.py`
 
          - taking lot of time for ans generation: ~ 1 min for each query
 
            ![1793537377572](image/logs/1793537377572.png)
+
      - ### Discovered
 
        - `Generated Answer` not produced in the current run.
 
          - instead `Ground-Truth Answer` was displayed as `Generated Answer`![1793539465170](image/logs/1793539465170.png)
+
    - added option in `configs.yaml` to evaluate a single query
+
    - replaced query tokens with  ground-truth context tokens in .html response
+
    - also changed the look of ground truth context and retrieved chunk tokens in web page
 
      - correct chunk tokens displayed as green
 
      ![1793546395362](image/logs/1793546395362.png)![1793546423688](image/logs/1793546423688.png)
-   - ### Inference
 
+   - ### Inference
 
      - very poor retrieval: just punctuations and common words like articles are in common(Green)
 
@@ -743,10 +794,13 @@ getting same metrics values in each run because of linear search.
 ## seeing chunk token ids in place of chunk text
 
 - corrected `evaluate2.py`: was checking whether whole of the chunk lies in the ground truth context.
+
 - chromaDB's metadata storing only `chunk_index` and no source
+
 - no. of chunks(22,556) != no. of embeddings(27,193), created by `scripts.vector_store.index_chroma`
 
   - reason -> regenerated chunks but reused embeddings from the previous chunking configuration.
+
   - solution -> everytime chunking config changed in `configs.yaml`:
 
     - generate chunks -> `python -m scripts.chunking.chunk_html_text`
@@ -754,7 +808,9 @@ getting same metrics values in each run because of linear search.
     - index into ChromaDB -> `python -m scripts.vector_store.index_chroma`
 
     evaluate retrieval -> `python -m src.evaluation.evaluate`
+
   - updated:
+
   - - `src/embeddings/new_minilm_vocab_emb.py` -> embedding files now chosen automatically as per the config instead of using just one (~15 min)
     - ``scripts/vector_store/index_chroma.py`` -> embeddings chosen from respective files as per config (~0.5 min)
     - ``scripts/vector_store/verify_chroma.py``
@@ -771,23 +827,31 @@ getting same metrics values in each run because of linear search.
 - Ground-truth Context
 
   ![1795625182670](image/logs/1795625182670.png)![1795625383675](image/logs/1795625383675.png)![1795625505971](image/logs/1795625505971.png)![1795625548068](image/logs/1795625548068.png)
+
 - *problem:* 512-token chunk contains both relevant and unrelated information
 
   - reducing its similarity to the query
+
 - *solutions:*
 
   - ~~reduce chunk size~~
-  - ~~reranker~~
+
+  - ~~reranker~~ 
 
     - since it will add more computation latency at inference in loading model etc
-  - parent child retrieval
+
+  - parent child retrieval 
 
     - just additional  mathemical cosine similarity function to be implemented which is fast.
+
     - decisions:
 
       - Parent size: 512 tokens.
+
       - Child size: 128 tokens.
+
       - Child overlap: 16 tokens.
+
       - Parent overlap: 26 tokens.
 
 ## 2. Adding parent-child retrieval
@@ -795,19 +859,27 @@ getting same metrics values in each run because of linear search.
 - *update:*
 
   - *`configs.yaml`*
+
   - `src/utils/helpers.py`
+
   - `src/rag_pipeline.py`
+
 - *create:*
 
   - `src/chunking/parent_child_chunker.py`
+
   - `scripts/chunking/build_parent_child_chunks.py`
+
   - `scripts/vector_store/index_parent_child.py`
+
   - `src/retrieval/parent_child_retrieval.py`
+
 - *generate parent and child chunks*
 
   ```powershell
   python -m scripts.chunking.build_parent_child_chunks
   ```
+
 - *Build the child vector index*
 
   ```powershell
@@ -830,10 +902,13 @@ Execution time: 335.51 seconds
   ```powershell
   python -m src.rag_pipeline
   ```
+
 - observations:
 
   - certain retrieved chunk sizes are too big.
+
   - certain chunks are repeating
+
 - rebuild child index by reducing parent size
 
   ```textile
@@ -845,6 +920,7 @@ Execution time: 335.51 seconds
     child_top_k: 40
     parent_top_k: 20
   ```
+
 - run
 
   ```powershell
@@ -866,6 +942,7 @@ Execution time: 341.83 seconds
 - *problem:* still ranked 7th
 
   - *reason:* map each child to its parent and retain the first occurrence
+
   - *instead:* score of its best-ranked child
 
 ## 3. update evaluation metrics
@@ -875,7 +952,9 @@ chunking-independent evaluation
 - *update:*
 
   - `src/evaluation/evaluate2.py`
+
   - `src/evaluation/evaluation_context.py`
+
   - `src/evaluation/retrieval/recall_at_k.py`
 
     $$
@@ -883,17 +962,20 @@ chunking-independent evaluation
     \frac{\text{Relevant results retrieved in top K}}
     {\text{Total relevant results}}
     $$
+
   - `src/evaluation/retrieval/precision_at_k.py`
 
     $$
     Precision@K =
     \frac{\text{Relevant results retrieved in top K}}{K}
     $$
+
   - `src/evaluation/retrieval/mrr.py`
 
     $$
     MRR = \frac{1}{\text{Rank of first relevant result}}
     $$
+
   - `src/evaluation/retrieval/hit_rate_at_k.py`
 
     $$
@@ -903,6 +985,7 @@ chunking-independent evaluation
     0 & \text{otherwise}
     \end{cases}
     $$
+
 - *add:*
 
   - `src/evaluation/retrieval/evidence_utils.py`
@@ -918,12 +1001,16 @@ chunking-independent evaluation
 ![](C:\Users\palla\AppData\Roaming\marktext\images\640e1d1903a06204a00c553744cee6aaa60de927.png)
 
 - rank 7 chunk is the one containing exact ground truth context.
+
 - rank 6 chunk is having so less tokens in common why still given higher rank
+
 - rank 1 also is not having tokens in continuous series, just random tokens matched
 
 ![](C:\Users\palla\AppData\Roaming\marktext\images\763d00905245f37413cf320cbc2c6f0f91b67ec4.png)
 
 - low ground-truth token coverage chunks assigned higher rank
+
+  - retriever is ranking chunks according to query relevance, but its ranking does not necessarily maximize reference-context coverage.
 
 ## next
 
@@ -932,18 +1019,208 @@ chunking-independent evaluation
   Experiment with:
 
   - Child size: 64, 96, 128 tokens.
+
   - Parent size: 256, 384, 512 tokens.
+
   - Child candidate count.
+
   - Parent aggregation: maximum child score versus another aggregation strategy.
+
 - **Compare retrieval architectures**
 
   Compare:
 
   - Dense retrieval
+
   - BM25 retrieval
+
   - Hybrid retrieval
+
   - Parent-child retrieval
+
 - Compare retrieval quality against latency, memory usage and context size
+
 - **Move to generation evaluation**
 
   Once retrieval is stable, evaluate answer faithfulness, completeness and hallucination rate
+
+---
+
+# 26/11/26
+
+## 1. Retriever evaluation metric
+
+- final metrics:
+
+  - Sequence Coverage
+
+  - Hit_Rate@K
+
+  - MRR@K before and after
+
+  - ~~Precision@K~~ : since retrieved chunk can contain a small relevant passage surrounded by a lot of unrelated text
+
+  - ~~Recall@K~~ : since we are not checking for individual token & instead sequence of tokens
+
+- updated:
+
+  - `src/evaluation/retrieval/evidence_utils.py`
+
+  - `src/evaluation/evaluation_context.py`
+
+  - `src/evaluation/retrieval/hit_rate_at_k.py`
+
+  - `src/evaluation/retrieval/mrr.py`
+
+  - `src/rag_pipeline.py`
+
+  - `src/evaluation/evaluate2.py`
+
+  - `configs.yaml`
+
+  - `scripts/view_query_results.py`
+
+  - renamed: `evaluate2.py` $\rightarrow$ `evaluate.py` 
+
+- created:
+
+  - `src/evaluation/retrieval/sequence_coverage.py`
+
+  - just for debugging: `scripts/test_sequence_coverage.py`
+
+- run
+
+  ```powershell
+  python -m scripts.test_sequence_coverage
+  ```
+
+### New metric: Sequence Coverage
+
+- find the longest sequence of consecutive tokens that appears in both the ground-truth context and a retrieved chunk, regardless of their starting positions.
+
+- *pros:*
+
+  1. ground-truth sequence can match anywhere inside the retrieved chunk.
+
+  2. All occurrences are preserved in the hash map, so an early occurrence cannot hide a better match.
+
+#### Working
+
+##### 1. Input
+
+```python
+ground_truth = "a b x a b c"
+retrieved    = "a b c"
+```
+
+| Index | Ground Truth tokens | Retrieved tokens |
+| ----- | ------------------- | ---------------- |
+| 0     | a                   | a                |
+| 1     | b                   | b                |
+| 2     | x                   | c                |
+| 3     | a                   |                  |
+| 4     | b                   |                  |
+| 5     | c                   |                  |
+
+##### 2. Build Token-Position Hash Map
+
+Store every occurrence of each token in the ground-truth context.
+
+```
+{"a": [0, 3],    "b": [1, 4],    "x": [2],    "c": [5]}
+```
+
+##### 3. Initialize Tracker
+
+Each tracker position represents the longest consecutive matching sequence ending at that ground-truth index.
+
+*Initial state:*
+
+```
+Tracker: [0, 0, 0, 0, 0, 0]
+```
+
+##### 4. Process Retrieved Tokens
+
+*Important:* Process ground-truth positions in descending order to prevent the same retrieved token from being used more than once.
+
+###### Iteration 1: Retrieved token `a`
+
+Retrieved token index: 0
+
+Ground-truth token positions: `[0, 3]`
+
+| GT Index | Calculation              | Tracker Update |
+| -------- | ------------------------ | -------------- |
+| 3        | `tracker[2] + 1 = 0 + 1` | 1              |
+| 0        | Starting position        | 1              |
+
+```
+Tracker: [1, 0, 0, 1, 0, 0]
+```
+
+Longest match = 1(`a`)
+
+###### Iteration 2: Retrieved token `b`
+
+Retrieved index: 1
+
+Ground-truth positions: `[1, 4]`
+
+| GT Index | Calculation              | Tracker Update |
+| -------- | ------------------------ | -------------- |
+| 4        | `tracker[3] + 1 = 1 + 1` | 2              |
+| 1        | `tracker[0] + 1 = 1 + 1` | 2              |
+
+```
+Tracker: [1, 2, 0, 1, 2, 0]
+```
+
+Longest match = 2 (`a b`)
+
+###### Iteration 3: Retrieved token `c`
+
+Retrieved index: 2
+
+Ground-truth position: `[5]`
+
+| GT Index | Calculation              | Tracker Update |
+| -------- | ------------------------ | -------------- |
+| 5        | `tracker[4] + 1 = 2 + 1` | 3              |
+
+```
+Tracker: [1, 2, 0, 1, 2, 3]
+```
+
+Longest match = 3 (`a b c`)
+
+##### 5. Update Maximum Match
+
+Final values:
+
+| Variable             | Value |
+| -------------------- | ----- |
+| `max_match`          | 3     |
+| `best_gt_end`        | 5     |
+| `best_retrieved_end` | 2     |
+
+##### 6. Recover Matching Sequence
+
+| Position           | Calculation | Result (start) | end (start + `max_match`) |
+| ------------------ | ----------- | -------------- | ------------------------- |
+| Ground-truth start | `5 - 3 + 1` | 3              | 6                         |
+| Retrieved start    | `2 - 3 + 1` | 0              | 3                         |
+
+##### 7. Calculate Sequence Coverage
+
+| Metric                    | Value      |
+| ------------------------- | ---------- |
+| Longest consecutive match | 3          |
+| Total ground-truth tokens | 6          |
+| Sequence coverage         | 0.50 (50%) |
+
+## Problem to solve:
+
+![](C:\Users\palla\AppData\Roaming\marktext\images\0eea52c940f640798a53a9e520e4895a6711345e.png)
+
+both type of tokens not produced in same way.

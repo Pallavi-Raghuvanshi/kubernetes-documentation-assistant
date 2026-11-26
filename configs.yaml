@@ -43,10 +43,9 @@ evaluation:
 
   metrics:
     retrieval:
-      - recall_at_k
-      - precision_at_k
-      - mrr
+      - sequence_coverage
       - hit_rate_at_k
+      - mrr
 
     generation:
       - faithfulness

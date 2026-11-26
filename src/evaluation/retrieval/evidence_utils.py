@@ -3,7 +3,7 @@
 # will contain the shared evidence-matching logic used by the retrieval metrics
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 
 
 def tokenize_evidence(text: str) -> list[str]:
@@ -119,3 +119,74 @@ def calculate_ground_truth_similarity(
     )
 
     return matching_tokens / sum(gt_tokens.values())
+
+
+def calculate_sequence_coverage(
+    ground_truth_context: str,
+    retrieved_text: str,
+) -> dict:
+    """
+    Find the longest consecutive token sequence shared by
+    ground truth and a retrieved chunk.
+    """
+
+    gt_tokens = tokenize_evidence(ground_truth_context)
+    retrieved_tokens = tokenize_evidence(retrieved_text)
+
+    empty_result = {
+        "sequence_coverage": 0.0,
+        "longest_match": 0,
+        "ground_truth_start": None,
+        "retrieved_start": None,
+        "matching_sequence": [],
+    }
+
+    if not gt_tokens or not retrieved_tokens:
+        return empty_result
+
+    token_positions = defaultdict(list)
+
+    for index, token in enumerate(gt_tokens):
+        token_positions[token].append(index)
+
+    # Stores matches ending at each GT position
+    # for the previous retrieved token.
+    previous = {}
+
+    max_match = 0
+    best_gt_end = None
+    best_retrieved_end = None
+
+    for retrieved_index, token in enumerate(retrieved_tokens):
+        current = {}
+
+        for gt_index in token_positions.get(token, []):
+            if gt_index == 0:
+                match_length = 1
+            else:
+                match_length = previous.get(gt_index - 1, 0) + 1
+
+            current[gt_index] = match_length
+
+            if match_length > max_match:
+                max_match = match_length
+                best_gt_end = gt_index
+                best_retrieved_end = retrieved_index
+
+        previous = current
+
+    if max_match == 0:
+        return empty_result
+
+    gt_start = best_gt_end - max_match + 1
+    retrieved_start = best_retrieved_end - max_match + 1
+
+    return {
+        "sequence_coverage": max_match / len(gt_tokens),
+        "longest_match": max_match,
+        "ground_truth_start": gt_start,
+        "retrieved_start": retrieved_start,
+        "matching_sequence": gt_tokens[
+            gt_start:best_gt_end + 1
+        ],
+    }

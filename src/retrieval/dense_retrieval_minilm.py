@@ -26,7 +26,7 @@ def search(
     collection,
     model,
     top_k: int,
-) -> tuple[list[dict], list[str]]:
+) -> tuple[list[dict], list[str], list[str]]:
 
     query_tokens = model.tokenizer.tokenize(query)
     gt_context_tokens = model.tokenizer.tokenize(gt_context)
